@@ -15,7 +15,14 @@ class ECMWFOpenData(DataIngest):
     def __init__(self, dataset_id, output_dir):
         super().__init__(dataset_id=dataset_id, output_dir=output_dir)
 
-        self.params = ["2t", "tp", "msl", "10u", "10v"]
+        self.params = [
+            {"variable": "2t", "name": "t2m"},
+            {"variable": "tp"},
+            {"variable": "msl"},
+            {"variable": "10u"},
+            {"variable": "10v"}
+        ]
+
         # https://www.ecmwf.int/en/forecasts/datasets/open-data
         # For time 00z: 0 to 144 by 3
         # next 6 Days, 3 hour steps
@@ -24,7 +31,7 @@ class ECMWFOpenData(DataIngest):
         self.request = {
             "stream": "oper",
             "type": "fc",
-            "param": self.params,
+            "param": [p.get("variable") for p in self.params],
             "time": 0,
             "step": self.steps
         }
@@ -58,7 +65,8 @@ class ECMWFOpenData(DataIngest):
 
             if processed:
                 # send ingest command
-                for param in self.params:
+                for p in self.params:
+                    param = p.get("name") if p.get("name") else p.get("variable")
                     ingest_payload = {
                         "namespace": f"-n {self.request.get('stream')}_{self.request.get('type')}_{param}",
                         "path": f"-p {self.output_dir}/{param}",
@@ -87,9 +95,13 @@ class ECMWFOpenData(DataIngest):
         # write projection info
         ds.rio.write_crs("epsg:4326", inplace=True)
 
-        for param in self.params:
-            logging.debug(f"[ECMWF_FORECAST]: Processing variable: {param}")
-            if param in ds.variables:
+        for p in self.params:
+            data_var = p.get("variable")
+            logging.debug(f"[ECMWF_FORECAST]: Processing variable: {data_var}")
+
+            if data_var in ds.variables:
+                param = p.get("name") if p.get("name") else p.get("variable")
+
                 for i, t in enumerate(ds.time.values):
                     data_datetime = pd.to_datetime(str(t))
                     date_str = data_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
@@ -99,7 +111,7 @@ class ECMWFOpenData(DataIngest):
                     # create directory if not exists
                     Path(param_t_filename).parent.absolute().mkdir(parents=True, exist_ok=True)
 
-                    data_array = ds[param].isel(time=i)
+                    data_array = ds[data_var].isel(time=i)
                     nodata_value = data_array.encoding.get('nodata', data_array.encoding.get('_FillValue'))
 
                     # check that nodata is not nan
