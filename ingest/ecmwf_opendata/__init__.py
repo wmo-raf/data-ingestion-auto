@@ -112,11 +112,11 @@ class ECMWFOpenData(DataIngest):
                     Path(param_t_filename).parent.absolute().mkdir(parents=True, exist_ok=True)
 
                     data_array = ds[data_var].isel(time=i)
-                    nodata_value = data_array.encoding.get('nodata', data_array.encoding.get('_FillValue'))
+                    # nodata_value = data_array.encoding.get('nodata', data_array.encoding.get('_FillValue'))
 
-                    # check that nodata is not nan
-                    if np.isnan(nodata_value):
-                        data_array = data_array.rio.write_nodata(-9999, encoded=True)
+                    # # check that nodata is not nan
+                    # if np.isnan(nodata_value):
+                    #     data_array = data_array.rio.write_nodata(-9999, encoded=True)
 
                     # save data as geotiff
                     data_array.rio.to_raster(param_t_filename, driver="COG")
