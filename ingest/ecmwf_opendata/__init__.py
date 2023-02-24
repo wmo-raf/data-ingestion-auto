@@ -15,8 +15,9 @@ class ECMWFOpenData(DataIngest):
         super().__init__(dataset_id=dataset_id, output_dir=output_dir)
 
         self.params = ["2t", "tp", "msl", "10u", "10v"]
-        # next 6 Days
         # https://www.ecmwf.int/en/forecasts/datasets/open-data
+        # For time 00z: 0 to 144 by 3
+        # next 6 Days, 3 hour steps
         self.steps = [i for i in range(0, 145, 3)]
 
         self.request = {
@@ -55,6 +56,20 @@ class ECMWFOpenData(DataIngest):
             processed = self.process(tmp_file.name)
 
             if processed:
+                # send ingest command
+                for param in self.params:
+                    ingest_payload = {
+                        "namespace": f"-n {self.request.get('stream')}_{self.request.get('type')}_{param}",
+                        "path": f"-p {self.output_dir}/{param}",
+                        "datatype": "-t tif",
+                        "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
+                    }
+
+                    logging.info(
+                        f"[ECMWF_FORECAST]: Sending ingest command for param: {param} and date {latest_str}")
+
+                    self.send_ingest_command(ingest_payload)
+
                 self.update_state(latest_str)
 
     def process(self, temp_file):
@@ -78,7 +93,7 @@ class ECMWFOpenData(DataIngest):
                     data_datetime = pd.to_datetime(str(t))
                     date_str = data_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
                     file_prefix = f"{self.request.get('stream')}_{self.request.get('type')}"
-                    param_t_filename = f"{self.output_dir}/{param}/{file_prefix}_{param}_{date_str}.tiff"
+                    param_t_filename = f"{self.output_dir}/{param}/{file_prefix}_{param}_{date_str}.tif"
 
                     # create directory if not exists
                     Path(param_t_filename).parent.absolute().mkdir(parents=True, exist_ok=True)

@@ -9,7 +9,9 @@ import requests
 
 from ingest.config import SETTINGS
 
-DATASET_STATE_FILE = SETTINGS.get("DATASET_STATE_FILE")
+DATASET_STATE_DIR = SETTINGS.get("DATASET_STATE_DIR")
+
+DATASET_STATE_FILE = os.path.join(DATASET_STATE_DIR, "state.json")
 
 
 def copy_with_metadata(source, target):
@@ -83,6 +85,10 @@ def write_empty_state(dataset_id):
 
 
 def read_state(dataset_id):
+    # create state file if it does not exist
+    if not os.path.isfile(DATASET_STATE_FILE):
+        with open(DATASET_STATE_FILE, mode='w') as f:
+            f.write("{}")
     try:
         logging.debug(f"[STATE]: Opening state file {DATASET_STATE_FILE}")
         with open(DATASET_STATE_FILE, 'r') as f:

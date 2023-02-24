@@ -58,11 +58,25 @@ class DustForecastIngest(DataIngest):
             logging.info(f"[DUST_FORECAST]: Downloading data from url: {file_url}' for date: {data_file_date}")
             tmp_file = download_file_temp(file_url, auth=(self.username, self.password), timeout=self.timeout)
 
-            logging.info(f"[DUST_FORECAST]: Forecast downloaded successfully to temp file: {tmp_file}")
+            logging.debug(f"[DUST_FORECAST]: Forecast downloaded successfully to temp file: {tmp_file}")
 
             processed = self.process(tmp_file)
 
             if processed:
+                for variable in self.variables:
+                    param = variable.lower()
+                    # Send ingest command
+                    ingest_payload = {
+                        "namespace": f"-n {param}",
+                        "path": f"-p {self.output_dir}/{param}",
+                        "datatype": "-t tif",
+                        "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
+                    }
+
+                    logging.info(
+                        f"[DUST_FORECAST]: Sending ingest command for param: {param} and date {data_file_date}")
+                    self.send_ingest_command(ingest_payload)
+
                 self.update_state(data_file_date)
 
     def process(self, temp_file):
@@ -72,7 +86,7 @@ class DustForecastIngest(DataIngest):
 
         ds.rio.write_crs("epsg:4326", inplace=True)
 
-        ds = self.clip_to_africa(ds)
+        # ds = self.clip_to_africa(ds)
 
         for variable in self.variables:
             logging.debug(f"[DUST_FORECAST]: Processing variable: {variable}")
@@ -82,7 +96,7 @@ class DustForecastIngest(DataIngest):
                     data_datetime = pd.to_datetime(str(t))
                     date_str = data_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
                     param = variable.lower()
-                    param_t_filename = f"{self.output_dir}/{param}/{param}_{date_str}.tiff"
+                    param_t_filename = f"{self.output_dir}/{param}/{param}_{date_str}.tif"
 
                     # create directory if not exists
                     Path(param_t_filename).parent.absolute().mkdir(parents=True, exist_ok=True)

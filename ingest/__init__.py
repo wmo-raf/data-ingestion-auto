@@ -1,12 +1,19 @@
+import codecs
+import hashlib
+import hmac
 import logging
 import subprocess
 
-from shapely.geometry import shape
 import fiona
+import requests
+from shapely.geometry import shape
 
 from ingest.config import SETTINGS
 from ingest.errors import ParameterMissing
 from ingest.utils import read_state, update_state
+
+GSKY_INGEST_LAYER_WEBHOOK_URL = SETTINGS.get("GSKY_INGEST_LAYER_WEBHOOK_URL")
+GSKY_WEBHOOK_SECRET = SETTINGS.get("GSKY_WEBHOOK_SECRET")
 
 
 class DataIngest(object):
@@ -62,3 +69,21 @@ class DataIngest(object):
         subprocess.run(command, shell=True, check=True)
 
         return output_file
+
+    @staticmethod
+    def send_ingest_command(payload):
+        if GSKY_INGEST_LAYER_WEBHOOK_URL and GSKY_WEBHOOK_SECRET:
+            request = requests.Request(method="POST", url=f"{GSKY_INGEST_LAYER_WEBHOOK_URL}", data=payload, headers={})
+            prepped = request.prepare()
+            # generate signature for auth
+            signature = hmac.new(codecs.encode(GSKY_WEBHOOK_SECRET), codecs.encode(prepped.body),
+                                 digestmod=hashlib.sha256)
+            prepped.headers['X-Gsky-Signature'] = signature.hexdigest()
+
+            with requests.Session() as session:
+                response = session.send(prepped)
+                logging.info(f"[INGEST]: Ingest command sent successfully for namespace {payload.get('namespace')}")
+                logging.info(response.text)
+            return True
+
+        return False

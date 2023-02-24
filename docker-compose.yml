@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  data_ingestion_auto:
+    image: africahazardswatch.org/data_ingestion_auto
+    build: .
+    container_name: data_ingestion_auto
+    restart: ${RESTART_POLICY}
+    volumes:
+      - ${GSKY_DATA_ROOT_VOLUME}:/gskydata/
+      - ${DATASET_STATE_DIR_VOLUME}:/usr/src/app/state
+    env_file:
+      - .env
