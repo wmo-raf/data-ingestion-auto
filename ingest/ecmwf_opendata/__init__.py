@@ -3,6 +3,7 @@ import os
 import tempfile
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 from ecmwf.opendata import Client
@@ -98,8 +99,15 @@ class ECMWFOpenData(DataIngest):
                     # create directory if not exists
                     Path(param_t_filename).parent.absolute().mkdir(parents=True, exist_ok=True)
 
+                    data_array = ds[param].isel(time=i)
+                    nodata_value = data_array.encoding.get('nodata', data_array.encoding.get('_FillValue'))
+
+                    # check that nodata is not nan
+                    if np.isnan(nodata_value):
+                        data_array = data_array.rio.write_nodata(-9999, encoded=True)
+
                     # save data as geotiff
-                    ds[param].isel(time=i).rio.to_raster(param_t_filename, driver="COG")
+                    data_array.rio.to_raster(param_t_filename, driver="COG")
 
         # remove downloaded/temp files
         os.remove(temp_file)

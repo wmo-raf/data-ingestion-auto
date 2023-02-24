@@ -3,10 +3,10 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-import xarray as xr
+import numpy as np
 import pandas as pd
-
 import requests
+import xarray as xr
 import xmltodict
 
 from ingest import DataIngest, ParameterMissing
@@ -101,7 +101,14 @@ class DustForecastIngest(DataIngest):
                     # create directory if not exists
                     Path(param_t_filename).parent.absolute().mkdir(parents=True, exist_ok=True)
 
-                    ds[variable].isel(time=i).rio.to_raster(param_t_filename, driver="COG")
+                    data_array = ds[variable].isel(time=i)
+                    nodata_value = data_array.encoding.get('nodata', data_array.encoding.get('_FillValue'))
+
+                    # check that nodata is not nan
+                    if np.isnan(nodata_value):
+                        data_array = data_array.rio.write_nodata(-9999, encoded=True)
+
+                    data_array.rio.to_raster(param_t_filename, driver="COG")
 
         # remove downloaded file
         os.remove(temp_file)
