@@ -11,3 +11,8 @@ services:
       - ${DATASET_STATE_DIR_VOLUME}:/usr/src/app/state
     env_file:
       - .env
+
+networks:
+  default:
+    name: ${AHW_DOCKER_NETWORK}
+    external: true
