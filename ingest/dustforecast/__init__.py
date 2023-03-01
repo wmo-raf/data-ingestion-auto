@@ -28,7 +28,11 @@ class DustForecastIngest(DataIngest):
 
         self.timeout = timeout
 
-        self.variables = ["OD550_DUST", "SCONC_DUST"]
+        self.variables = [
+            {"variable": "OD550_DUST", "name": "od550_dust", },
+            {"variable": "SCONC_DUST", "name": "sconc_dust", "constant": 1000000000, "operation": "multiply",
+             "units": "μgm**3"}
+        ]
 
     def run(self):
         logging.info('[DUST_FORECAST]: Starting Process...')
@@ -64,7 +68,7 @@ class DustForecastIngest(DataIngest):
 
             if processed:
                 for variable in self.variables:
-                    param = variable.lower()
+                    param = variable.get("name")
                     # Send ingest command
                     ingest_payload = {
                         "namespace": f"-n {param}",
@@ -88,14 +92,15 @@ class DustForecastIngest(DataIngest):
 
         # ds = self.clip_to_africa(ds)
 
-        for variable in self.variables:
+        for var in self.variables:
+            variable = var.get("variable")
+            param = var.get("name")
             logging.debug(f"[DUST_FORECAST]: Processing variable: {variable}")
             if variable in ds.variables:
                 for i, t in enumerate(ds.time.values):
                     logging.debug(f"[DUST_FORECAST]: Processing date: {t}")
                     data_datetime = pd.to_datetime(str(t))
                     date_str = data_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-                    param = variable.lower()
                     param_t_filename = f"{self.output_dir}/{param}/{param}_{date_str}.tif"
 
                     # create directory if not exists
@@ -103,6 +108,17 @@ class DustForecastIngest(DataIngest):
 
                     data_array = ds[variable].isel(time=i)
                     nodata_value = data_array.encoding.get('nodata', data_array.encoding.get('_FillValue'))
+
+                    if var.get("constant") and var.get("operation"):
+                        operation = var.get("operation")
+                        logging.info(f"[DUST_FORECAST]: Performing operation : {operation} on data")
+                        # perform operation
+                        if operation == "multiply":
+                            data_array = data_array * var.get("constant")
+
+                        # check if we have new units
+                        if var.get("units"):
+                            data_array.attrs["units"] = var.get("units")
 
                     # check that nodata is not nan
                     if np.isnan(nodata_value):
