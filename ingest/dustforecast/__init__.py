@@ -83,6 +83,8 @@ class DustForecastIngest(DataIngest):
 
                 self.update_state(data_file_date)
 
+                self.cleanup_old_data(data_file_date)
+
     def process(self, temp_file):
         logging.info(f"[DUST_FORECAST]: Processing data...")
 

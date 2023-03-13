@@ -10,14 +10,14 @@ from shapely.geometry import shape
 
 from ingest.config import SETTINGS
 from ingest.errors import ParameterMissing
-from ingest.utils import read_state, update_state
+from ingest.utils import read_state, update_state, delete_past_data_files
 
 GSKY_INGEST_LAYER_WEBHOOK_URL = SETTINGS.get("GSKY_INGEST_LAYER_WEBHOOK_URL")
 GSKY_WEBHOOK_SECRET = SETTINGS.get("GSKY_WEBHOOK_SECRET")
 
 
 class DataIngest(object):
-    def __init__(self, dataset_id, output_dir):
+    def __init__(self, dataset_id, output_dir, cleanup_old_data=True):
         if not dataset_id:
             raise ParameterMissing("dataset_id not provided")
 
@@ -27,8 +27,9 @@ class DataIngest(object):
         self.dataset_id = dataset_id
         self.output_dir = output_dir
         self.africa_shp_path = SETTINGS.get("AFRICA_SHP_PATH")
+        self.cleanup_data = cleanup_old_data
 
-    def run(self):
+    def run(self, **kwargs):
         raise NotImplementedError
 
     def get_state(self):
@@ -87,3 +88,8 @@ class DataIngest(object):
             return True
 
         return False
+
+    def cleanup_old_data(self, latest_date_str):
+        if self.cleanup_data:
+            logging.info(f"[DATASET CLEANUP]: Cleaning up old {self.dataset_id} files for date: {latest_date_str}")
+            delete_past_data_files(latest_date_str, self.output_dir)

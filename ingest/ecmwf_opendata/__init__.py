@@ -9,93 +9,166 @@ from ecmwf.opendata import Client
 
 from ingest import DataIngest
 
+PRESSURE_LEVELS = [925, 850, 700, 500, 250]
+
+PRESSURE_LEVELS_PARAMS = [
+    {"variable": "d", "name": "divergence", "desc": "Divergence", },
+    {"variable": "gh", "name": "geopotential_height", "desc": "Geopotential height"},
+    {"variable": "q", "name": "specific_humidity", "desc": "Specific humidity"},
+    {"variable": "r", "name": "relative_humidity", "desc": "Relative humidity"},
+    {"variable": "t", "name": "temperature", "desc": "Temperature"},
+    {"variable": "u", "name": "u_wind", "desc": "U Component of Wind"},
+    {"variable": "v", "name": "v_wind", "desc": "V Component of Wind"},
+    {"variable": "vo", "name": "vorticity", "desc": "Vorticity (relative)"},
+]
+
+SINGLE_LEVEL_PARAMS = [
+    {"variable": "2t", "name": "temperature", "desc": "2 metre temperature"},
+    {"variable": "tp", "name": "total_precipitation", "desc": "Total Precipitation"},
+    {"variable": "msl", "name": "mean_sea_level_pressure", "desc": "Mean Sea Level Pressure"},
+    {"variable": "10u", "name": "u_wind", "desc": "10 metre U wind component"},
+    {"variable": "10v", "name": "v_wind", "desc": "10 metre V wind component"}
+]
+
 
 class ECMWFOpenData(DataIngest):
-    def __init__(self, dataset_id, output_dir):
-        super().__init__(dataset_id=dataset_id, output_dir=output_dir)
+    def __init__(self, dataset_id, output_dir, cleanup_old_data=True):
+        super().__init__(dataset_id=dataset_id, output_dir=output_dir, cleanup_old_data=cleanup_old_data)
 
-        self.params = [
-            {"variable": "2t", "name": "temperature"},
-            {"variable": "tp"},
-            {"variable": "msl"},
-            {"variable": "10u"},
-            {"variable": "10v"}
-        ]
+        self.single_level_params = SINGLE_LEVEL_PARAMS
+        self.pressure_level_params = PRESSURE_LEVELS_PARAMS
+        self.pressure_levels = PRESSURE_LEVELS
 
         # https://www.ecmwf.int/en/forecasts/datasets/open-data
         # For time 00z: 0 to 144 by 3
         # next 6 Days, 3 hour steps
         self.steps = [i for i in range(0, 145, 3)]
 
-        self.request = {
+        self.client = Client("ecmwf", beta=True)
+
+    def get_latest_date(self, request):
+        return self.client.latest(request)
+
+    def retrieve_surface_data(self):
+        request = {
             "stream": "oper",
             "type": "fc",
-            "param": [p.get("variable") for p in self.params],
+            "levtype": "sfc",
+            "param": [p.get("variable") for p in self.single_level_params],
             "time": 0,
             "step": self.steps
         }
 
-        self.client = Client("ecmwf", beta=True)
+        latest = self.get_latest_date(request)
+
+        dataset_state = self.get_state()
+
+        if not latest:
+            return None
+
+        logging.info(f'[ECMWF_FORECAST]: Latest data date from remote is: {latest}')
+        latest_str = latest.isoformat()
+
+        if dataset_state and dataset_state.get("last_update") and dataset_state.get("last_update") == latest_str:
+            logging.info(f'[ECMWF_FORECAST]: No Update required. Skipping...')
+            return
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+
+        # update target file name
+        request.update({"target": temp_file.name})
+
+        logging.info(f"[ECMWF_FORECAST]: Downloading forecast data for date: {latest}...")
+        self.client.retrieve(request)
+
+        file_prefix = f"{request.get('stream')}_{request.get('type')}"
+        level_type = f"{request.get('levtype')}"
+
+        self.process(
+            temp_file.name,
+            self.single_level_params,
+            file_prefix,
+            level_type
+        )
+
+        return latest_str
+
+    def retrieve_pressure_levels_data(self):
+        request = {
+            "stream": "oper",
+            "type": "fc",
+            "levtype": "pl",
+            "levelist": self.pressure_levels,
+            "param": [p.get("variable") for p in self.pressure_level_params],
+            "time": 0,
+            "step": self.steps
+        }
+
+        logging.info('[ECMWF_FORECAST]: Checking for latest ecmwf data date...')
+        latest = self.get_latest_date(request)
+        dataset_state = self.get_state()
+
+        if not latest:
+            return None
+
+        logging.info(f'[ECMWF_FORECAST]: Latest data date from remote is: {latest}')
+        latest_str = latest.isoformat()
+
+        if dataset_state and dataset_state.get("last_update") and dataset_state.get("last_update") == latest_str:
+            logging.info(f'[ECMWF_FORECAST]: No Update required. Skipping...')
+            return
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+
+        # update target file name
+        request.update({"target": temp_file.name})
+
+        logging.info(f"[ECMWF_FORECAST]: Downloading forecast data for date: {latest}...")
+        self.client.retrieve(request)
+
+        file_prefix = f"{request.get('stream')}_{request.get('type')}"
+        level_type = f"{request.get('levtype')}"
+
+        self.process(
+            temp_file.name,
+            self.pressure_level_params,
+            file_prefix,
+            level_type,
+            pressure_levels=request.get("levelist")
+        )
+
+        return latest_str
 
     def run(self):
         logging.info('[ECMWF_FORECAST]: Starting Process...')
-        dataset_state = self.get_state()
 
-        logging.info('[ECMWF_FORECAST]: Checking for latest ecmwf data date...')
+        # get surface data
+        self.retrieve_surface_data()
 
-        latest = self.client.latest(self.request)
+        # get pressure levels data
+        latest_str = self.retrieve_pressure_levels_data()
 
-        if latest:
-            logging.info(f'[ECMWF_FORECAST]: Latest data date from remote is: {latest}')
-            latest_str = latest.isoformat()
+        if latest_str:
+            # update state
+            self.update_state(latest_str)
 
-            if dataset_state and dataset_state.get("last_update") and dataset_state.get("last_update") == latest_str:
-                logging.info(f'[ECMWF_FORECAST]: No Update required. Skipping...')
-                return
+        self.cleanup_old_data(latest_str)
 
-            tmp_file = tempfile.NamedTemporaryFile(delete=False)
-            # update target file name
-            self.request.update({"target": tmp_file.name})
-
-            logging.info(f"[ECMWF_FORECAST]: Downloading forecast data for date: {latest}...")
-            self.client.retrieve(self.request)
-
-            processed = self.process(tmp_file.name)
-
-            if processed:
-                # send ingest command
-                for p in self.params:
-                    param = p.get("name") if p.get("name") else p.get("variable")
-                    namespace = f"{self.request.get('stream')}_{self.request.get('type')}_{param}"
-                    ingest_payload = {
-                        "namespace": f"-n {namespace}",
-                        "path": f"-p {self.output_dir}/{namespace}",
-                        "datatype": "-t tif",
-                        "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
-                    }
-
-                    logging.info(
-                        f"[ECMWF_FORECAST]: Sending ingest command for param: {param} and date {latest_str}")
-
-                    self.send_ingest_command(ingest_payload)
-
-                self.update_state(latest_str)
-
-    def process(self, temp_file):
+    def process(self, file_path, params, file_prefix_id, level_type, pressure_levels=()):
         logging.info(f"[ECMWF_FORECAST]: Processing data...")
 
         # convert to nc
         nc_out_tmp = tempfile.NamedTemporaryFile(delete=False)
 
         logging.info(f"[ECMWF_FORECAST]: Converting grib to nc ...")
-        self.grib_to_netcdf(temp_file, nc_out_tmp.name)
+        self.grib_to_netcdf(file_path, nc_out_tmp.name)
 
         ds = xr.open_dataset(nc_out_tmp.name)
 
         # write projection info
         ds.rio.write_crs("epsg:4326", inplace=True)
 
-        for p in self.params:
+        for p in params:
             data_var = p.get("variable")
             logging.debug(f"[ECMWF_FORECAST]: Processing variable: {data_var}")
 
@@ -105,24 +178,68 @@ class ECMWFOpenData(DataIngest):
                 for i, t in enumerate(ds.time.values):
                     data_datetime = pd.to_datetime(str(t))
                     date_str = data_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-                    file_prefix = f"{self.request.get('stream')}_{self.request.get('type')}_{param}"
-                    param_t_filename = f"{self.output_dir}/{file_prefix}/{file_prefix}_{date_str}.tif"
+                    file_prefix = f"{file_prefix_id}_{param}_{level_type}"
 
-                    # create directory if not exists
-                    Path(param_t_filename).parent.absolute().mkdir(parents=True, exist_ok=True)
+                    if len(pressure_levels) and "plev" in ds.variables:
+                        for p_index, p_lev in enumerate(ds.plev.values):
+                            # convert to hPa
+                            p_hpa = int(p_lev / 100)
 
-                    data_array = ds[data_var].isel(time=i)
-                    # nodata_value = data_array.encoding.get('nodata', data_array.encoding.get('_FillValue'))
-                    #
-                    # # check that nodata is not nan
-                    # if np.isnan(nodata_value):
-                    #     data_array = data_array.rio.write_nodata(-9999, encoded=True)
+                            namespace = f"{file_prefix}_{p_hpa}"
+                            param_p_filename = f"{self.output_dir}/{namespace}/{namespace}_{date_str}.tif"
+                            # create directory if not exists
+                            Path(param_p_filename).parent.absolute().mkdir(parents=True, exist_ok=True)
 
-                    # save data as geotiff
-                    data_array.rio.to_raster(param_t_filename, driver="COG")
+                            # select data for time and pressure level
+                            data_array = ds[data_var].isel(time=i, plev=p_index)
+
+                            # save data as geotiff
+                            data_array.rio.to_raster(param_p_filename, driver="COG")
+
+                            # send ingest command
+                            ingest_payload = {
+                                "namespace": f"-n {namespace}",
+                                "path": f"-p {self.output_dir}/{namespace}",
+                                "datatype": "-t tif",
+                                "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
+                            }
+
+                            logging.info(
+                                f"[ECMWF_FORECAST]: Sending ingest command for namespace: {namespace} and date {date_str}")
+
+                            self.send_ingest_command(ingest_payload)
+                    else:
+                        namespace = f"{file_prefix}"
+                        param_t_filename = f"{self.output_dir}/{namespace}/{namespace}_{date_str}.tif"
+
+                        # create directory if not exists
+                        Path(param_t_filename).parent.absolute().mkdir(parents=True, exist_ok=True)
+
+                        data_array = ds[data_var].isel(time=i)
+                        # nodata_value = data_array.encoding.get('nodata', data_array.encoding.get('_FillValue'))
+                        #
+                        # # check that nodata is not nan
+                        # if np.isnan(nodata_value):
+                        #     data_array = data_array.rio.write_nodata(-9999, encoded=True)
+
+                        # save data as geotiff
+                        data_array.rio.to_raster(param_t_filename, driver="COG")
+
+                        # send ingest command
+                        ingest_payload = {
+                            "namespace": f"-n {namespace}",
+                            "path": f"-p {self.output_dir}/{namespace}",
+                            "datatype": "-t tif",
+                            "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
+                        }
+
+                        logging.info(
+                            f"[ECMWF_FORECAST]: Sending ingest command for namespace: {namespace} and date {date_str}")
+
+                        self.send_ingest_command(ingest_payload)
 
         # remove downloaded/temp files
-        os.remove(temp_file)
+        os.remove(file_path)
         os.remove(nc_out_tmp.name)
 
         return True

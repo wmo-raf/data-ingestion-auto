@@ -6,6 +6,9 @@ import tempfile
 import rioxarray as rxr
 import json
 import requests
+from dateutil import parser
+import re
+import pytz
 
 from ingest.config import SETTINGS
 
@@ -116,3 +119,24 @@ def download_file_temp(url, auth=None, timeout=None):
     with requests.get(url, stream=True, auth=auth, timeout=timeout) as r:
         tmp_file.write(r.content)
     return tmp_file.name
+
+
+def delete_past_data_files(latest_date_str, file_dir):
+    latest_date = parser.parse(latest_date_str).astimezone(pytz.utc)
+    pattern = r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)'
+
+    for root, directories, files in os.walk(file_dir):
+        for filename in files:
+            file_path = os.path.join(root, filename)
+
+            match = re.search(pattern, file_path)
+
+            if match:
+                # If a match is found, extract the date and time
+                datetime_string = match.group(1)
+
+                file_date = parser.parse(datetime_string)
+
+                if file_date < latest_date:
+                    logging.debug(f"[CLEANUP]: Deleting file {file_path}")
+                    os.remove(file_path)
