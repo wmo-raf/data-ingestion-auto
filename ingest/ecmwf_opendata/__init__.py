@@ -174,44 +174,48 @@ class ECMWFOpenData(DataIngest):
 
             if data_var in ds.variables:
                 param = p.get("name") if p.get("name") else p.get("variable")
+                file_prefix = f"{file_prefix_id}_{param}_{level_type}"
 
-                for i, t in enumerate(ds.time.values):
-                    data_datetime = pd.to_datetime(str(t))
-                    date_str = data_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-                    file_prefix = f"{file_prefix_id}_{param}_{level_type}"
+                # handle pressure levels data
+                if len(pressure_levels) and "plev" in ds.variables:
+                    for p_index, p_lev in enumerate(ds.plev.values):
+                        # convert to hPa
+                        p_hpa = int(p_lev / 100)
 
-                    if len(pressure_levels) and "plev" in ds.variables:
-                        for p_index, p_lev in enumerate(ds.plev.values):
-                            # convert to hPa
-                            p_hpa = int(p_lev / 100)
+                        namespace = f"{file_prefix}_{p_hpa}"
 
-                            namespace = f"{file_prefix}_{p_hpa}"
+                        for time_index, t in enumerate(ds.time.values):
+                            data_datetime = pd.to_datetime(str(t))
+                            date_str = data_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
                             param_p_filename = f"{self.output_dir}/{namespace}/{namespace}_{date_str}.tif"
                             # create directory if not exists
                             Path(param_p_filename).parent.absolute().mkdir(parents=True, exist_ok=True)
-
                             # select data for time and pressure level
-                            data_array = ds[data_var].isel(time=i, plev=p_index)
-
+                            data_array = ds[data_var].isel(time=time_index, plev=p_index)
                             # save data as geotiff
                             data_array.rio.to_raster(param_p_filename, driver="COG")
 
-                            # send ingest command
-                            ingest_payload = {
-                                "namespace": f"-n {namespace}",
-                                "path": f"-p {self.output_dir}/{namespace}",
-                                "datatype": "-t tif",
-                                "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
-                            }
+                        # send ingest command
+                        ingest_payload = {
+                            "namespace": f"-n {namespace}",
+                            "path": f"-p {self.output_dir}/{namespace}",
+                            "datatype": "-t tif",
+                            "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
+                        }
 
-                            logging.info(
-                                f"[ECMWF_FORECAST]: Sending ingest command for namespace: {namespace} and date {date_str}")
+                        logging.info(
+                            f"[ECMWF_FORECAST]: Sending ingest command for namespace: {namespace}")
 
-                            self.send_ingest_command(ingest_payload)
-                    else:
-                        namespace = f"{file_prefix}"
+                        self.send_ingest_command(ingest_payload)
+                        return
+                else:
+                    namespace = f"{file_prefix}"
+                    for i, t in enumerate(ds.time.values):
+                        data_datetime = pd.to_datetime(str(t))
+                        date_str = data_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
                         param_t_filename = f"{self.output_dir}/{namespace}/{namespace}_{date_str}.tif"
-
                         # create directory if not exists
                         Path(param_t_filename).parent.absolute().mkdir(parents=True, exist_ok=True)
 
@@ -226,17 +230,17 @@ class ECMWFOpenData(DataIngest):
                         data_array.rio.to_raster(param_t_filename, driver="COG")
 
                         # send ingest command
-                        ingest_payload = {
-                            "namespace": f"-n {namespace}",
-                            "path": f"-p {self.output_dir}/{namespace}",
-                            "datatype": "-t tif",
-                            "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
-                        }
+                    ingest_payload = {
+                        "namespace": f"-n {namespace}",
+                        "path": f"-p {self.output_dir}/{namespace}",
+                        "datatype": "-t tif",
+                        "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
+                    }
 
-                        logging.info(
-                            f"[ECMWF_FORECAST]: Sending ingest command for namespace: {namespace} and date {date_str}")
+                    logging.info(
+                        f"[ECMWF_FORECAST]: Sending ingest command for namespace: {namespace}")
 
-                        self.send_ingest_command(ingest_payload)
+                    self.send_ingest_command(ingest_payload)
 
         # remove downloaded/temp files
         os.remove(file_path)
