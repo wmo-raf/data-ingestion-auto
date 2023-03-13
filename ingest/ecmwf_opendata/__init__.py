@@ -208,7 +208,6 @@ class ECMWFOpenData(DataIngest):
                             f"[ECMWF_FORECAST]: Sending ingest command for namespace: {namespace}")
 
                         self.send_ingest_command(ingest_payload)
-                        return
                 else:
                     namespace = f"{file_prefix}"
                     for i, t in enumerate(ds.time.values):
