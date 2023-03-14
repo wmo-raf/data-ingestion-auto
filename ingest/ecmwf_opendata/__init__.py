@@ -183,12 +183,13 @@ class ECMWFOpenData(DataIngest):
                         p_hpa = int(p_lev / 100)
 
                         namespace = f"{file_prefix}_{p_hpa}"
+                        data_dir = f"{self.output_dir}/{namespace}"
 
                         for time_index, t in enumerate(ds.time.values):
                             data_datetime = pd.to_datetime(str(t))
                             date_str = data_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
-                            param_p_filename = f"{self.output_dir}/{namespace}/{namespace}_{date_str}.tif"
+                            param_p_filename = f"{data_dir}/{namespace}_{date_str}.tif"
                             # create directory if not exists
                             Path(param_p_filename).parent.absolute().mkdir(parents=True, exist_ok=True)
                             # select data for time and pressure level
@@ -197,11 +198,11 @@ class ECMWFOpenData(DataIngest):
                             data_array.rio.to_raster(param_p_filename, driver="COG")
 
                         # cleanup old forecasts before ingestion
-                        self.cleanup_old_data(latest_str)
+                        self.cleanup_old_data(latest_str, data_dir)
                         # send ingest command
                         ingest_payload = {
                             "namespace": f"-n {namespace}",
-                            "path": f"-p {self.output_dir}/{namespace}",
+                            "path": f"-p {data_dir}",
                             "datatype": "-t tif",
                             "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
                         }
@@ -212,11 +213,13 @@ class ECMWFOpenData(DataIngest):
                         self.send_ingest_command(ingest_payload)
                 else:
                     namespace = f"{file_prefix}"
+                    data_dir = f"{self.output_dir}/{namespace}"
+
                     for i, t in enumerate(ds.time.values):
                         data_datetime = pd.to_datetime(str(t))
                         date_str = data_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
-                        param_t_filename = f"{self.output_dir}/{namespace}/{namespace}_{date_str}.tif"
+                        param_t_filename = f"{data_dir}/{namespace}_{date_str}.tif"
                         # create directory if not exists
                         Path(param_t_filename).parent.absolute().mkdir(parents=True, exist_ok=True)
 
@@ -231,11 +234,11 @@ class ECMWFOpenData(DataIngest):
                         data_array.rio.to_raster(param_t_filename, driver="COG")
 
                     # cleanup old forecasts before ingestion
-                    self.cleanup_old_data(latest_str)
+                    self.cleanup_old_data(latest_str, data_dir)
                     # send ingest command
                     ingest_payload = {
                         "namespace": f"-n {namespace}",
-                        "path": f"-p {self.output_dir}/{namespace}",
+                        "path": f"-p {data_dir}",
                         "datatype": "-t tif",
                         "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
                     }

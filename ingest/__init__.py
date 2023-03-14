@@ -89,7 +89,7 @@ class DataIngest(object):
 
         return False
 
-    def cleanup_old_data(self, latest_date_str):
+    def cleanup_old_data(self, latest_date_str, data_dir):
         if self.cleanup_data:
             logging.info(f"[DATASET CLEANUP]: Cleaning up old {self.dataset_id} files for date: {latest_date_str}")
-            delete_past_data_files(latest_date_str, self.output_dir)
+            delete_past_data_files(latest_date_str, data_dir)

@@ -69,10 +69,16 @@ class DustForecastIngest(DataIngest):
             if processed:
                 for variable in self.variables:
                     param = variable.get("name")
+
+                    data_dir = f"{self.output_dir}/{param}"
+
+                    # cleanup old data
+                    self.cleanup_old_data(data_file_date, data_dir)
+
                     # Send ingest command
                     ingest_payload = {
                         "namespace": f"-n {param}",
-                        "path": f"-p {self.output_dir}/{param}",
+                        "path": f"-p {data_dir}",
                         "datatype": "-t tif",
                         "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
                     }
@@ -82,8 +88,6 @@ class DustForecastIngest(DataIngest):
                     self.send_ingest_command(ingest_payload)
 
                 self.update_state(data_file_date)
-
-                self.cleanup_old_data(data_file_date)
 
     def process(self, temp_file):
         logging.info(f"[DUST_FORECAST]: Processing data...")
