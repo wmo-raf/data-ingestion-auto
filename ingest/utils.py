@@ -125,6 +125,8 @@ def delete_past_data_files(latest_date_str, file_dir):
     latest_date = parser.parse(latest_date_str).astimezone(pytz.utc)
     pattern = r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)'
 
+    count = 0
+
     for root, directories, files in os.walk(file_dir):
         for filename in files:
             file_path = os.path.join(root, filename)
@@ -140,3 +142,6 @@ def delete_past_data_files(latest_date_str, file_dir):
                 if file_date < latest_date:
                     logging.debug(f"[CLEANUP]: Deleting file {file_path}")
                     os.remove(file_path)
+                    count += 1
+
+    logging.info(f"[CLEANUP]: Deleted: {count} files from directory: {file_dir}")
