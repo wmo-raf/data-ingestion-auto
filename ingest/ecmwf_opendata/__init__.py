@@ -88,6 +88,7 @@ class ECMWFOpenData(DataIngest):
             temp_file.name,
             self.single_level_params,
             file_prefix,
+            latest_str,
             level_type
         )
 
@@ -133,6 +134,7 @@ class ECMWFOpenData(DataIngest):
             temp_file.name,
             self.pressure_level_params,
             file_prefix,
+            latest_str,
             level_type,
             pressure_levels=request.get("levelist")
         )
@@ -152,9 +154,7 @@ class ECMWFOpenData(DataIngest):
             # update state
             self.update_state(latest_str)
 
-        self.cleanup_old_data(latest_str)
-
-    def process(self, file_path, params, file_prefix_id, level_type, pressure_levels=()):
+    def process(self, file_path, params, file_prefix_id, latest_str, level_type, pressure_levels=()):
         logging.info(f"[ECMWF_FORECAST]: Processing data...")
 
         # convert to nc
@@ -196,6 +196,8 @@ class ECMWFOpenData(DataIngest):
                             # save data as geotiff
                             data_array.rio.to_raster(param_p_filename, driver="COG")
 
+                        # cleanup old forecasts before ingestion
+                        self.cleanup_old_data(latest_str)
                         # send ingest command
                         ingest_payload = {
                             "namespace": f"-n {namespace}",
@@ -228,7 +230,9 @@ class ECMWFOpenData(DataIngest):
                         # save data as geotiff
                         data_array.rio.to_raster(param_t_filename, driver="COG")
 
-                        # send ingest command
+                    # cleanup old forecasts before ingestion
+                    self.cleanup_old_data(latest_str)
+                    # send ingest command
                     ingest_payload = {
                         "namespace": f"-n {namespace}",
                         "path": f"-p {self.output_dir}/{namespace}",
