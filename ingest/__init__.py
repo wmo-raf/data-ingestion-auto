@@ -10,7 +10,7 @@ from shapely.geometry import shape
 
 from ingest.config import SETTINGS
 from ingest.errors import ParameterMissing
-from ingest.utils import read_state, update_state, delete_past_data_files
+from ingest.utils import read_state, update_state, delete_past_data_files, convert_data, generate_contour_geojson
 
 GSKY_INGEST_LAYER_WEBHOOK_URL = SETTINGS.get("GSKY_INGEST_LAYER_WEBHOOK_URL")
 GSKY_WEBHOOK_SECRET = SETTINGS.get("GSKY_WEBHOOK_SECRET")
@@ -50,6 +50,41 @@ class DataIngest(object):
         ds = ds.rio.clip([geom], 'epsg:4326', drop=True)
 
         return ds
+
+    @staticmethod
+    def convert_units(data_array, convert_config):
+        operation = convert_config.get("operation")
+        constant = convert_config.get("constant")
+        units = convert_config.get("units")
+
+        if operation and constant:
+            logging.info(f"Performing operation : {operation} on data")
+            data_array = convert_data(data_array, constant, operation)
+
+            if units:
+                data_array.attrs["units"] = units
+        return data_array
+
+    @staticmethod
+    def convert_vectors(raster_data_file, vectors_config):
+        for vector_config in vectors_config:
+            vector_type = vector_config.get("type")
+
+            # handle contour generation
+            if vector_type == "contour":
+                vector_options = vector_config.get("options")
+
+                attr_name = vector_options.get("data_column")
+                interval = vector_options.get("interval")
+
+                contour_options = {
+                    "attr_name": attr_name,
+                    "interval": interval
+                }
+
+                geojson_out_file = generate_contour_geojson(raster_data_file, contour_options)
+
+                # save contour to database
 
     @staticmethod
     def grib_to_netcdf(input_file, output_file):

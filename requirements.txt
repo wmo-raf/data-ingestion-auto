@@ -9,6 +9,7 @@ click-plugins==1.1.1
 cligj==0.7.2
 ecmwf-opendata==0.1.2
 Fiona==1.9.1
+geojson==3.0.1
 idna==3.4
 multiurl==0.2.0
 munch==2.5.0
@@ -16,6 +17,7 @@ netCDF4==1.6.2
 numpy==1.24.2
 packaging==23.0
 pandas==1.5.3
+psycopg2==2.9.5
 pyparsing==3.0.9
 pyproj==3.4.1
 python-dateutil==2.8.2

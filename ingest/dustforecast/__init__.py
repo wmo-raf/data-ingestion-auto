@@ -131,16 +131,7 @@ class DustForecastIngest(DataIngest):
 
                     if var.get("convert"):
                         convert_config = var.get("convert")
-                        operation = convert_config.get("operation")
-                        constant = convert_config.get("constant")
-                        units = convert_config.get("units")
-
-                        if operation and constant:
-                            logging.info(f"[DUSt_FORECAST]: Performing operation : {operation} on data")
-                            data_array = convert_data(data_array, constant, operation)
-
-                            if units:
-                                data_array.attrs["units"] = units
+                        data_array = self.convert_units(data_array, convert_config)
 
                     # check that nodata is not nan
                     if np.isnan(nodata_value):

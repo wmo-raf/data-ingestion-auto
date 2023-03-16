@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 import stat
+import subprocess
 import tempfile
 import rioxarray as rxr
 import json
@@ -159,3 +160,18 @@ def convert_data(data_array, constant, operation):
         return data_array + constant
 
     raise UnknownDataConvertOperation(f"Unknown operation: {operation}")
+
+
+def generate_contour_geojson(data_file, options):
+    geojson_out = tempfile.NamedTemporaryFile(delete=False)
+
+    attr_name = options.get("attr_name")
+    interval = options.get("interval")
+
+    # generate contours
+    command = f"gdal_contour -a {attr_name} {data_file} {geojson_out.name} -i {interval}"
+
+    # Execute the command using subprocess
+    subprocess.run(command, shell=True, check=True)
+
+    return geojson_out.name

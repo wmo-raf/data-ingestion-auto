@@ -8,7 +8,6 @@ import xarray as xr
 from ecmwf.opendata import Client
 
 from ingest import DataIngest
-from ingest.utils import convert_data
 
 SURFACE_LEVEL_PARAMS = [
     {
@@ -41,7 +40,17 @@ SURFACE_LEVEL_PARAMS = [
             "constant": 100,
             "operation": "divide",
             "units": "hPa"
-        }
+        },
+        "vectors": [
+            {
+                "type": "contour",
+                "options": {
+                    "data_column": "el_val",
+                    "interval": 5,
+                    "schema": "pgadapter",
+                }
+            }
+        ]
     },
     {"variable": "10u", "name": "u_wind", "desc": "10 metre U wind component", "units": "m s**-1"},
     {"variable": "10v", "name": "v_wind", "desc": "10 metre V wind component", "units": "m s**-1"}
@@ -59,7 +68,10 @@ PRESSURE_LEVELS_PARAMS = [
             "operation": "divide",
             "constant": 10,
             "units": "gpdm",
-        }
+        },
+        "vectors": [
+            {"type": "contour", "data_column": "el_val", "interval": 5}
+        ]
     },
     {
         "variable": "q",
@@ -276,17 +288,8 @@ class ECMWFOpenData(DataIngest):
                             data_array = ds[data_var].isel(time=time_index, plev=p_index)
 
                             if p.get("convert"):
-                                convert_config = p.get("convert", {})
-                                operation = convert_config.get("operation")
-                                constant = convert_config.get("constant")
-                                units = convert_config.get("units")
-
-                                if operation and constant:
-                                    logging.info(f"[ECMWF_FORECAST]: Performing operation : {operation} on data")
-                                    data_array = convert_data(data_array, constant, operation)
-
-                                    if units:
-                                        data_array.attrs["units"] = units
+                                convert_config = p.get("convert")
+                                data_array = self.convert_units(data_array, convert_config)
 
                             # save data as geotiff
                             data_array.rio.to_raster(param_p_filename, driver="COG")
@@ -321,16 +324,8 @@ class ECMWFOpenData(DataIngest):
 
                         if p.get("convert"):
                             convert_config = p.get("convert")
-                            operation = convert_config.get("operation")
-                            constant = convert_config.get("constant")
-                            units = convert_config.get("units")
+                            data_array = self.convert_units(data_array, convert_config)
 
-                            if operation and constant:
-                                logging.info(f"[ECMWF_FORECAST]: Performing operation : {operation} on data")
-                                data_array = convert_data(data_array, constant, operation)
-
-                                if units:
-                                    data_array.attrs["units"] = units
                         # nodata_value = data_array.encoding.get('nodata', data_array.encoding.get('_FillValue'))
                         #
                         # # check that nodata is not nan
@@ -349,7 +344,6 @@ class ECMWFOpenData(DataIngest):
                         "datatype": "-t tif",
                         "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
                     }
-
                     logging.info(
                         f"[ECMWF_FORECAST]: Sending ingest command for namespace: {namespace}")
 
