@@ -10,7 +10,7 @@ import xarray as xr
 import xmltodict
 
 from ingest import DataIngest, ParameterMissing
-from ingest.utils import download_file_temp
+from ingest.utils import download_file_temp, convert_data
 
 
 class DustForecastIngest(DataIngest):
@@ -29,9 +29,22 @@ class DustForecastIngest(DataIngest):
         self.timeout = timeout
 
         self.variables = [
-            {"variable": "OD550_DUST", "name": "od550_dust", },
-            {"variable": "SCONC_DUST", "name": "sconc_dust", "constant": 1000000000, "operation": "multiply",
-             "units": "μgm**3"}
+            {
+                "variable": "OD550_DUST",
+                "name": "od550_dust",
+                "desc": "Multi-Model Dust Optical Depth (550nm)",
+            },
+            {
+                "variable": "SCONC_DUST",
+                "name": "sconc_dust",
+                "desc": "Multi-Model Dust Surface Concentration (µg/m³)",
+                "units": "ppb",
+                "convert": {
+                    "operation": "multiply",
+                    "constant": 1000000000,
+                    "units": "μgm**3"
+                }
+            }
         ]
 
     def run(self):
@@ -101,6 +114,7 @@ class DustForecastIngest(DataIngest):
         for var in self.variables:
             variable = var.get("variable")
             param = var.get("name")
+
             logging.debug(f"[DUST_FORECAST]: Processing variable: {variable}")
             if variable in ds.variables:
                 for i, t in enumerate(ds.time.values):
@@ -115,16 +129,18 @@ class DustForecastIngest(DataIngest):
                     data_array = ds[variable].isel(time=i)
                     nodata_value = data_array.encoding.get('nodata', data_array.encoding.get('_FillValue'))
 
-                    if var.get("constant") and var.get("operation"):
-                        operation = var.get("operation")
-                        logging.info(f"[DUST_FORECAST]: Performing operation : {operation} on data")
-                        # perform operation
-                        if operation == "multiply":
-                            data_array = data_array * var.get("constant")
+                    if var.get("convert"):
+                        convert_config = var.get("convert")
+                        operation = convert_config.get("operation")
+                        constant = convert_config.get("constant")
+                        units = convert_config.get("units")
 
-                        # check if we have new units
-                        if var.get("units"):
-                            data_array.attrs["units"] = var.get("units")
+                        if operation and constant:
+                            logging.info(f"[DUSt_FORECAST]: Performing operation : {operation} on data")
+                            data_array = convert_data(data_array, operation, constant)
+
+                            if units:
+                                data_array.attrs["units"] = units
 
                     # check that nodata is not nan
                     if np.isnan(nodata_value):

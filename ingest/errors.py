@@ -6,3 +6,7 @@ class Error(Exception):
 
 class ParameterMissing(Error):
     pass
+
+
+class UnknownDataConvertOperation(Error):
+    pass

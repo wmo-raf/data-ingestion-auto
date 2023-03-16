@@ -8,26 +8,106 @@ import xarray as xr
 from ecmwf.opendata import Client
 
 from ingest import DataIngest
+from ingest.utils import convert_data
 
-PRESSURE_LEVELS = [925, 850, 700, 500, 250]
-
-PRESSURE_LEVELS_PARAMS = [
-    {"variable": "d", "name": "divergence", "desc": "Divergence", },
-    {"variable": "gh", "name": "geopotential_height", "desc": "Geopotential height"},
-    {"variable": "q", "name": "specific_humidity", "desc": "Specific humidity"},
-    {"variable": "r", "name": "relative_humidity", "desc": "Relative humidity"},
-    {"variable": "t", "name": "temperature", "desc": "Temperature"},
-    {"variable": "u", "name": "u_wind", "desc": "U Component of Wind"},
-    {"variable": "v", "name": "v_wind", "desc": "V Component of Wind"},
-    {"variable": "vo", "name": "vorticity", "desc": "Vorticity (relative)"},
+SURFACE_LEVEL_PARAMS = [
+    {
+        "variable": "2t",
+        "name": "temperature",
+        "desc": "2 metre Temperature",
+        "units": "K",
+        "convert": {
+            "operation": "subtract",
+            "constant": 273.15,
+            "units": "degC"
+        }
+    },
+    {
+        "variable": "tp",
+        "name": "total_precipitation",
+        "desc": "Total Precipitation",
+        "units": "m",
+        "convert": {
+            "constant": 1000,
+            "operation": "multiply",
+            "units": "mm"
+        }
+    },
+    {
+        "variable": "msl",
+        "name": "mean_sea_level_pressure",
+        "desc": "Mean Sea Level Pressure",
+        "convert": {
+            "constant": 100,
+            "operation": "divide",
+            "units": "hPa"
+        }
+    },
+    {"variable": "10u", "name": "u_wind", "desc": "10 metre U wind component", "units": "m s**-1"},
+    {"variable": "10v", "name": "v_wind", "desc": "10 metre V wind component", "units": "m s**-1"}
 ]
 
-SINGLE_LEVEL_PARAMS = [
-    {"variable": "2t", "name": "temperature", "desc": "2 metre temperature"},
-    {"variable": "tp", "name": "total_precipitation", "desc": "Total Precipitation"},
-    {"variable": "msl", "name": "mean_sea_level_pressure", "desc": "Mean Sea Level Pressure"},
-    {"variable": "10u", "name": "u_wind", "desc": "10 metre U wind component"},
-    {"variable": "10v", "name": "v_wind", "desc": "10 metre V wind component"}
+PRESSURE_LEVELS = [1000, 925, 850, 700, 500, 300, 250, 200, 50]
+
+PRESSURE_LEVELS_PARAMS = [
+    {
+        "variable": "gh",
+        "name": "geopotential_height",
+        "desc": "Geopotential Height",
+        "units": "gpm",
+        "convert": {
+            "operation": "divide",
+            "constant": 10,
+            "units": "gpdm",
+        }
+    },
+    {
+        "variable": "q",
+        "name": "specific_humidity",
+        "desc": "Specific humidity",
+        "units": "kg kg**-1",
+        "convert": {
+            "operation": "multiply",
+            "constant": 100000,
+            "units": "g kg**-1",
+        }
+    },
+    {"variable": "r", "name": "relative_humidity", "desc": "Relative humidity", "units": "%"},
+    {
+        "variable": "t",
+        "name": "temperature",
+        "desc": "Temperature",
+        "units": "K",
+        "convert": {
+            "operation": "subtract",
+            "constant": 273.15,
+            "units": "degC"
+        }
+    },
+    {"variable": "u", "name": "u_wind", "desc": "U Component of Wind", "units": "m s**-1"},
+    {"variable": "v", "name": "v_wind", "desc": "V Component of Wind", "units": "m s**-1"},
+    {
+        "variable": "d",
+        "name": "divergence",
+        "desc": "Divergence",
+        "units": "s**-1",
+        "convert": {
+            "constant": 100000,
+            "operation": "multiply",
+            "units": "10**-5 s**-1"
+        }
+    },
+    {
+        "variable": "vo",
+        "name": "vorticity",
+        "desc": "Vorticity (relative)",
+        "units": "s**-1",
+        "convert": {
+            "constant": 100000,
+            "operation": "multiply",
+            "units": "10**-5 s**-1"
+        }
+    },
 ]
 
 
@@ -35,7 +115,7 @@ class ECMWFOpenData(DataIngest):
     def __init__(self, dataset_id, output_dir, cleanup_old_data=True):
         super().__init__(dataset_id=dataset_id, output_dir=output_dir, cleanup_old_data=cleanup_old_data)
 
-        self.single_level_params = SINGLE_LEVEL_PARAMS
+        self.surface_level_params = SURFACE_LEVEL_PARAMS
         self.pressure_level_params = PRESSURE_LEVELS_PARAMS
         self.pressure_levels = PRESSURE_LEVELS
 
@@ -54,7 +134,7 @@ class ECMWFOpenData(DataIngest):
             "stream": "oper",
             "type": "fc",
             "levtype": "sfc",
-            "param": [p.get("variable") for p in self.single_level_params],
+            "param": [p.get("variable") for p in self.surface_level_params],
             "time": 0,
             "step": self.steps
         }
@@ -86,7 +166,7 @@ class ECMWFOpenData(DataIngest):
 
         self.process(
             temp_file.name,
-            self.single_level_params,
+            self.surface_level_params,
             file_prefix,
             latest_str,
             level_type
@@ -194,6 +274,20 @@ class ECMWFOpenData(DataIngest):
                             Path(param_p_filename).parent.absolute().mkdir(parents=True, exist_ok=True)
                             # select data for time and pressure level
                             data_array = ds[data_var].isel(time=time_index, plev=p_index)
+
+                            if p.get("convert"):
+                                convert_config = p.get("convert", {})
+                                operation = convert_config.get("operation")
+                                constant = convert_config.get("constant")
+                                units = convert_config.get("units")
+
+                                if operation and constant:
+                                    logging.info(f"[ECMWF_FORECAST]: Performing operation : {operation} on data")
+                                    data_array = convert_data(data_array, operation, constant)
+
+                                    if units:
+                                        data_array.attrs["units"] = units
+
                             # save data as geotiff
                             data_array.rio.to_raster(param_p_filename, driver="COG")
 
@@ -224,6 +318,19 @@ class ECMWFOpenData(DataIngest):
                         Path(param_t_filename).parent.absolute().mkdir(parents=True, exist_ok=True)
 
                         data_array = ds[data_var].isel(time=i)
+
+                        if p.get("convert"):
+                            convert_config = p.get("convert")
+                            operation = convert_config.get("operation")
+                            constant = convert_config.get("constant")
+                            units = convert_config.get("units")
+
+                            if operation and constant:
+                                logging.info(f"[ECMWF_FORECAST]: Performing operation : {operation} on data")
+                                data_array = convert_data(data_array, operation, constant)
+
+                                if units:
+                                    data_array.attrs["units"] = units
                         # nodata_value = data_array.encoding.get('nodata', data_array.encoding.get('_FillValue'))
                         #
                         # # check that nodata is not nan

@@ -11,6 +11,7 @@ import re
 import pytz
 
 from ingest.config import SETTINGS
+from ingest.errors import UnknownDataConvertOperation
 
 DATASET_STATE_DIR = SETTINGS.get("DATASET_STATE_DIR")
 
@@ -145,3 +146,16 @@ def delete_past_data_files(latest_date_str, file_dir):
                     count += 1
 
     logging.info(f"[CLEANUP]: Deleted: {count} files from directory: {file_dir}")
+
+
+def convert_data(data_array, constant, operation):
+    if operation == "multiply":
+        return data_array * constant
+    if operation == "divide":
+        return data_array / constant
+    if operation == "subtract":
+        return data_array - constant
+    if operation == "add":
+        return data_array + constant
+
+    raise UnknownDataConvertOperation(f"Unknown operation: {operation}")
