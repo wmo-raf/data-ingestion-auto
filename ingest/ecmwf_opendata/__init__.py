@@ -283,7 +283,7 @@ class ECMWFOpenData(DataIngest):
 
                                 if operation and constant:
                                     logging.info(f"[ECMWF_FORECAST]: Performing operation : {operation} on data")
-                                    data_array = convert_data(data_array, operation, constant)
+                                    data_array = convert_data(data_array, constant, operation)
 
                                     if units:
                                         data_array.attrs["units"] = units
@@ -327,7 +327,7 @@ class ECMWFOpenData(DataIngest):
 
                             if operation and constant:
                                 logging.info(f"[ECMWF_FORECAST]: Performing operation : {operation} on data")
-                                data_array = convert_data(data_array, operation, constant)
+                                data_array = convert_data(data_array, constant, operation)
 
                                 if units:
                                     data_array.attrs["units"] = units
