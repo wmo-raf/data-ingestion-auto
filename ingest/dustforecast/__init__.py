@@ -10,7 +10,7 @@ import xarray as xr
 import xmltodict
 
 from ingest import DataIngest, ParameterMissing
-from ingest.utils import download_file_temp, convert_data
+from ingest.utils import download_file_temp
 
 
 class DustForecastIngest(DataIngest):

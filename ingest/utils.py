@@ -1,15 +1,17 @@
+import json
 import logging
 import os
+import re
 import shutil
 import stat
 import subprocess
 import tempfile
-import rioxarray as rxr
-import json
-import requests
-from dateutil import parser
-import re
+from pathlib import Path
+
 import pytz
+import requests
+import rioxarray as rxr
+from dateutil import parser
 
 from ingest.config import SETTINGS
 from ingest.errors import UnknownDataConvertOperation
@@ -162,16 +164,30 @@ def convert_data(data_array, constant, operation):
     raise UnknownDataConvertOperation(f"Unknown operation: {operation}")
 
 
-def generate_contour_geojson(data_file, options):
-    geojson_out = tempfile.NamedTemporaryFile(delete=False)
+def generate_contour_geojson(data_file, out_dir, options):
+    data_file_name = f"{Path(data_file).stem}.geojson"
+
+    geojson_out = os.path.join(out_dir, data_file_name)
 
     attr_name = options.get("attr_name")
     interval = options.get("interval")
 
-    # generate contours
-    command = f"gdal_contour -a {attr_name} {data_file} {geojson_out.name} -i {interval}"
+    # gdal_contour command
+    command = f"gdal_contour -a {attr_name} {data_file} {geojson_out} -i {interval}"
 
     # Execute the command using subprocess
     subprocess.run(command, shell=True, check=True)
 
-    return geojson_out.name
+    return geojson_out
+
+
+def create_contour_data(raster_data_file, attr_name, interval, out_dir):
+    # handle contour generation
+    contour_options = {
+        "attr_name": attr_name,
+        "interval": interval
+    }
+
+    geojson_out_file = generate_contour_geojson(raster_data_file, out_dir, contour_options)
+
+    return geojson_out_file

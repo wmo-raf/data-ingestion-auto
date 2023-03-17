@@ -25,5 +25,14 @@ SETTINGS = {
 
     # ECMWF Open Data
     "ECMWF_FORECAST_DATA_DIR": os.getenv('ECMWF_FORECAST_DATA_DIR'),
-    "ECMWF_FORECAST_UPDATE_INTERVAL_SECONDS": os.getenv('ECMWF_FORECAST_UPDATE_INTERVAL_SECONDS', 1800)
+    "ECMWF_FORECAST_UPDATE_INTERVAL_SECONDS": os.getenv('ECMWF_FORECAST_UPDATE_INTERVAL_SECONDS', 1800),
+
+    # Database connection for vector data
+    "VECTOR_DB_CONN_PARAMS": {
+        'database': os.getenv("VECTOR_DB_NAME"),
+        'user': os.getenv("VECTOR_DB_USER"),
+        'password': os.getenv("VECTOR_DB_PASSWORD"),
+        'host': os.getenv("VECTOR_DB_HOST"),
+        'port': os.getenv("VECTOR_DB_PORT")
+    }
 }

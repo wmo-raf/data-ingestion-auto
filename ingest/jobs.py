@@ -8,7 +8,8 @@ dust_forecast = DustForecastIngest(dataset_id="dust_forecast",
                                    password=SETTINGS.get("DUST_AEMET_PASSWORD"))
 
 ecmwf_forecast = ECMWFOpenData(dataset_id="ecmwf_forecast",
-                               output_dir=SETTINGS.get("ECMWF_FORECAST_DATA_DIR"))
+                               output_dir=SETTINGS.get("ECMWF_FORECAST_DATA_DIR"),
+                               vector_db_conn_conn_params=SETTINGS.get("VECTOR_DB_CONN_PARAMS"))
 
 # Jobs
 jobs = [

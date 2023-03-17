@@ -10,3 +10,7 @@ class ParameterMissing(Error):
 
 class UnknownDataConvertOperation(Error):
     pass
+
+
+class UnKnownGeomType(Error):
+    pass

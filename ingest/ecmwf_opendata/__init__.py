@@ -45,7 +45,7 @@ SURFACE_LEVEL_PARAMS = [
             {
                 "type": "contour",
                 "options": {
-                    "data_column": "el_val",
+                    "attr_name": "el_val",
                     "interval": 5,
                     "schema": "pgadapter",
                 }
@@ -56,7 +56,8 @@ SURFACE_LEVEL_PARAMS = [
     {"variable": "10v", "name": "v_wind", "desc": "10 metre V wind component", "units": "m s**-1"}
 ]
 
-PRESSURE_LEVELS = [1000, 925, 850, 700, 500, 300, 250, 200, 50]
+# PRESSURE_LEVELS = [1000, 925, 850, 700, 500, 300, 250, 200, 50]
+PRESSURE_LEVELS = [1000]
 
 PRESSURE_LEVELS_PARAMS = [
     {
@@ -70,7 +71,14 @@ PRESSURE_LEVELS_PARAMS = [
             "units": "gpdm",
         },
         "vectors": [
-            {"type": "contour", "data_column": "el_val", "interval": 5}
+            {
+                "type": "contour",
+                "options": {
+                    "attr_name": "el_val",
+                    "interval": 5,
+                    "schema": "pgadapter",
+                }
+            }
         ]
     },
     {
@@ -124,12 +132,14 @@ PRESSURE_LEVELS_PARAMS = [
 
 
 class ECMWFOpenData(DataIngest):
-    def __init__(self, dataset_id, output_dir, cleanup_old_data=True):
+    def __init__(self, dataset_id, output_dir, cleanup_old_data=True, vector_db_conn_conn_params=None):
         super().__init__(dataset_id=dataset_id, output_dir=output_dir, cleanup_old_data=cleanup_old_data)
 
         self.surface_level_params = SURFACE_LEVEL_PARAMS
         self.pressure_level_params = PRESSURE_LEVELS_PARAMS
         self.pressure_levels = PRESSURE_LEVELS
+
+        self.vector_db_conn_conn_params = vector_db_conn_conn_params
 
         # https://www.ecmwf.int/en/forecasts/datasets/open-data
         # For time 00z: 0 to 144 by 3
@@ -294,6 +304,10 @@ class ECMWFOpenData(DataIngest):
                             # save data as geotiff
                             data_array.rio.to_raster(param_p_filename, driver="COG")
 
+                            vectors_config = p.get("vectors")
+                            if vectors_config:
+                                self.handle_vector_creation(vectors_config, param_p_filename, namespace, date_str)
+
                         # cleanup old forecasts before ingestion
                         self.cleanup_old_data(latest_str, data_dir)
                         # send ingest command
@@ -335,6 +349,10 @@ class ECMWFOpenData(DataIngest):
                         # save data as geotiff
                         data_array.rio.to_raster(param_t_filename, driver="COG")
 
+                        vectors_config = p.get("vectors")
+                        if vectors_config:
+                            self.handle_vector_creation(vectors_config, param_t_filename, namespace, date_str)
+
                     # cleanup old forecasts before ingestion
                     self.cleanup_old_data(latest_str, data_dir)
                     # send ingest command
@@ -354,3 +372,18 @@ class ECMWFOpenData(DataIngest):
         os.remove(nc_out_tmp.name)
 
         return True
+
+    def handle_vector_creation(self, vectors_config, param_t_filename, namespace, date_str, ):
+        for vector_config in vectors_config:
+            vector_type = vector_config.get("type")
+            vector_options = vector_config.get("options")
+
+            # handle contours
+            if vector_type == "contour":
+                attr_name = vector_options.get("attr_name")
+                interval = vector_options.get("interval")
+
+                logging.info(f"Generating contours for namespace: {namespace}")
+
+                self.create_contour_data(param_t_filename, self.vector_db_conn_conn_params,
+                                         date_str, namespace, attr_name, interval)
