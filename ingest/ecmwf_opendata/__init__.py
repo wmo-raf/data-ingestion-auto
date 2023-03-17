@@ -56,8 +56,8 @@ SURFACE_LEVEL_PARAMS = [
     {"variable": "10v", "name": "v_wind", "desc": "10 metre V wind component", "units": "m s**-1"}
 ]
 
-# PRESSURE_LEVELS = [1000, 925, 850, 700, 500, 300, 250, 200, 50]
-PRESSURE_LEVELS = [1000]
+PRESSURE_LEVELS = [1000, 925, 850, 700, 500, 300, 250, 200, 50]
+# PRESSURE_LEVELS = [1000]
 
 PRESSURE_LEVELS_PARAMS = [
     {
