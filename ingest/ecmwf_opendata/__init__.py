@@ -163,7 +163,7 @@ PRESSURE_LEVELS_PARAMS = [
 
 class ECMWFOpenData(DataIngest):
     def __init__(self, dataset_id, output_dir, cleanup_old_data=True, vector_db_conn_conn_params=None,
-                 task_timeout=30 * 60):
+                 task_timeout=60 * 60):
         super().__init__(dataset_id=dataset_id, output_dir=output_dir, cleanup_old_data=cleanup_old_data,
                          task_timeout=task_timeout)
 
@@ -409,7 +409,7 @@ class ECMWFOpenData(DataIngest):
 
                         if not derived:
                             logging.info(
-                                f'[ECMWF_FORECAST]: Processing Surface Data param: {param_name}, time {t} PLevel: {p_lev}')
+                                f'[ECMWF_FORECAST]: Processing Pressure Levels Data for param param: {param_name}, time {t} PLevel: {p_hpa} hPa')
                             # select data for time and pressure level
                             data_array = ds[data_var].isel(time=time_index, plev=p_index)
 
@@ -424,7 +424,7 @@ class ECMWFOpenData(DataIngest):
                                 self.handle_vector_generation(vectors_config, param_p_filename, namespace, date_str)
                         else:
                             logging.info(
-                                f'[ECMWF_FORECAST]: Processing Derived Pressure Level Data for param: {param_name}, time {t}, PLevel: {p_lev}')
+                                f'[ECMWF_FORECAST]: Processing Derived Pressure Level Data for param: {param_name}, time {t}, PLevel: {p_hpa} hPa')
                             derived_config = param.get("derived_config")
                             derived_type = derived_config.get("type")
 
