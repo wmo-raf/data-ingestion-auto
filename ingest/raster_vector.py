@@ -35,7 +35,7 @@ def is_valid_geom_type(geom_type):
 
 
 class VectorDbManager:
-    def __init__(self, conn_params, schema_name, table_name, geom_type, data_columns, srid=3857):
+    def __init__(self, conn_params, schema_name, table_name, geom_type, data_columns, srid=3857, delete_past_data=True):
         self.conn_params = conn_params
 
         self.schema_name = schema_name
@@ -50,6 +50,7 @@ class VectorDbManager:
         self.srid = srid
 
         self.data_columns = data_columns
+        self.delete_past_data = delete_past_data
 
         # initialize db
         self.enable_postgis_extension()
@@ -158,3 +159,6 @@ class VectorDbManager:
                 sql = f"INSERT INTO {self.full_table_name} ({column_names}) VALUES %s"
 
                 execute_values(cur, sql, rows)
+
+                if self.delete_past_data:
+                    cur.execute(f"DELETE FROM {self.table_name} WHERE date < '{date_str}'")
