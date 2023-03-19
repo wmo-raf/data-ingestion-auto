@@ -14,8 +14,8 @@ from ingest.utils import download_file_temp
 
 
 class DustForecastIngest(DataIngest):
-    def __init__(self, dataset_id, output_dir, username, password, timeout=None):
-        super().__init__(dataset_id=dataset_id, output_dir=output_dir)
+    def __init__(self, dataset_id, output_dir, username, password, request_timeout=None, task_timeout=20 * 60):
+        super().__init__(dataset_id=dataset_id, output_dir=output_dir, task_timeout=task_timeout)
 
         if not username:
             raise ParameterMissing("username required")
@@ -26,7 +26,7 @@ class DustForecastIngest(DataIngest):
         self.username = username
         self.password = password
 
-        self.timeout = timeout
+        self.request_timeout = request_timeout
 
         self.variables = [
             {
@@ -53,7 +53,7 @@ class DustForecastIngest(DataIngest):
         url = "https://dust.aemet.es/thredds/catalog/restrictedDataRoot/MULTI-MODEL/latest/catalog.xml"
 
         logging.info(f'[DUST_FORECAST]: Getting  catalog with url: {url}')
-        r = requests.get(url, timeout=self.timeout)
+        r = requests.get(url, timeout=self.request_timeout)
 
         logging.debug(f'[DUST_FORECAST]: Parsing  catalog')
         data = xmltodict.parse(r.text)
@@ -73,7 +73,7 @@ class DustForecastIngest(DataIngest):
         else:
             file_url = f"https://dust.aemet.es/thredds/fileServer/restrictedDataRoot/MULTI-MODEL/latest/{dataset_name}"
             logging.info(f"[DUST_FORECAST]: Downloading data from url: {file_url}' for date: {data_file_date}")
-            tmp_file = download_file_temp(file_url, auth=(self.username, self.password), timeout=self.timeout)
+            tmp_file = download_file_temp(file_url, auth=(self.username, self.password), timeout=self.request_timeout)
 
             logging.debug(f"[DUST_FORECAST]: Forecast downloaded successfully to temp file: {tmp_file}")
 

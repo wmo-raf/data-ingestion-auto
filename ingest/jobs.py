@@ -14,14 +14,14 @@ ecmwf_forecast = ECMWFOpenData(dataset_id="ecmwf_forecast",
 # Jobs
 jobs = [
     {
-        "job": dust_forecast.run,
+        "job": dust_forecast.task,
         "options": {
             'trigger': "interval", "seconds": int(SETTINGS.get("DUST_FORECAST_UPDATE_INTERVAL_SECONDS")),
             "max_instances": 1
         }
     },
     {
-        "job": ecmwf_forecast.run,
+        "job": ecmwf_forecast.task,
         "options": {
             'trigger': "interval", "seconds": int(SETTINGS.get("ECMWF_FORECAST_UPDATE_INTERVAL_SECONDS")),
             "max_instances": 1
