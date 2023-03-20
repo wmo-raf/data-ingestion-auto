@@ -106,7 +106,7 @@ PRESSURE_LEVELS_PARAMS = [
         "units": "kg kg**-1",
         "convert": {
             "operation": "multiply",
-            "constant": 100000,
+            "constant": 1000,
             "units": "g kg**-1",
         }
     },
