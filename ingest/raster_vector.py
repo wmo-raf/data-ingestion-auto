@@ -161,4 +161,4 @@ class VectorDbManager:
                 execute_values(cur, sql, rows)
 
                 if self.delete_past_data:
-                    cur.execute(f"DELETE FROM {self.table_name} WHERE date < '{date_str}'")
+                    cur.execute(f"DELETE FROM {self.full_table_name} WHERE date < '{date_str}'")
