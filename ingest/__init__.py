@@ -126,7 +126,8 @@ class DataIngest(object):
             delete_past_data_files(latest_date_str, data_dir)
 
     @staticmethod
-    def create_contour_data(raster_file_path, conn_params, date_str, table_name, attr_name, interval):
+    def create_contour_data(raster_file_path, conn_params, date_str, table_name, attr_name, interval,
+                            latest_date_str=None):
         with tempfile.TemporaryDirectory() as temp_dir:
             geojson_file = create_contour_data(raster_file_path,
                                                attr_name=attr_name,
@@ -144,4 +145,4 @@ class DataIngest(object):
             )
 
             # insert data
-            db.insert_update_data(date_str, geojson_file)
+            db.insert_update_data(date_str, geojson_file, latest_date_str=latest_date_str)

@@ -143,7 +143,7 @@ class VectorDbManager:
 
         return rows
 
-    def insert_update_data(self, date_str, data_file):
+    def insert_update_data(self, date_str, data_file, latest_date_str=None):
         rows = self.process_geojson(date_str, data_file)
         columns = ["date", "geom", *self.data_columns]
         column_names = ', '.join(columns)
@@ -160,5 +160,5 @@ class VectorDbManager:
 
                 execute_values(cur, sql, rows)
 
-                if self.delete_past_data:
-                    cur.execute(f"DELETE FROM {self.full_table_name} WHERE date < '{date_str}'")
+                if self.delete_past_data and latest_date_str:
+                    cur.execute(f"DELETE FROM {self.full_table_name} WHERE date < '{latest_date_str}'")

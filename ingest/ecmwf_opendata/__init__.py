@@ -331,7 +331,8 @@ class ECMWFOpenData(DataIngest):
                         # generate vector data from param e.g contours
                         vectors_config = param.get("vectors")
                         if vectors_config:
-                            self.handle_vector_generation(vectors_config, param_t_filename, namespace, date_str)
+                            self.handle_vector_generation(vectors_config, param_t_filename, namespace, date_str,
+                                                          latest_str)
                     else:
                         logging.info(
                             f'[ECMWF_FORECAST]: Processing Derived Surface Data param: {param_name} and time {t}')
@@ -421,7 +422,8 @@ class ECMWFOpenData(DataIngest):
 
                             vectors_config = param.get("vectors")
                             if vectors_config:
-                                self.handle_vector_generation(vectors_config, param_p_filename, namespace, date_str)
+                                self.handle_vector_generation(vectors_config, param_p_filename, namespace, date_str,
+                                                              latest_str)
                         else:
                             logging.info(
                                 f'[ECMWF_FORECAST]: Processing Derived Pressure Level Data for param: {param_name}, time {t}, PLevel: {p_hpa} hPa')
@@ -476,7 +478,7 @@ class ECMWFOpenData(DataIngest):
 
         return nc_out_tmp.name
 
-    def handle_vector_generation(self, vectors_config, param_t_filename, namespace, date_str, ):
+    def handle_vector_generation(self, vectors_config, param_t_filename, namespace, date_str, latest_date_str):
         for vector_config in vectors_config:
             vector_type = vector_config.get("type")
             vector_options = vector_config.get("options")
@@ -489,7 +491,7 @@ class ECMWFOpenData(DataIngest):
                 logging.info(f"Generating contours for namespace: {namespace}")
 
                 self.create_contour_data(param_t_filename, self.vector_db_conn_conn_params,
-                                         date_str, namespace, attr_name, interval)
+                                         date_str, namespace, attr_name, interval, latest_date_str=latest_date_str)
 
     @staticmethod
     def calculate_wind_speed(u_data, v_data):
