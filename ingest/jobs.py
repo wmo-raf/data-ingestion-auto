@@ -1,3 +1,4 @@
+from ingest.chirps_rainfall import ChirpsRainfall
 from ingest.config import SETTINGS
 from ingest.dustforecast import DustForecastIngest
 from ingest.ecmwf_opendata import ECMWFOpenData
@@ -15,15 +16,18 @@ ecmwf_forecast = ECMWFOpenData(dataset_id="ecmwf_forecast",
 tamsat_rainfall_estimate = TamSatRainfall(dataset_id="tamsat_rainfall",
                                           output_dir=SETTINGS.get("TAMSAT_RAINFALL_DATA_DIR"), )
 
+chirps_rainfall_estimate = ChirpsRainfall(dataset_id="chirps_rainfall",
+                                          output_dir=SETTINGS.get("CHIRPS_RAINFALL_DATA_DIR"))
+
 # Jobs
 jobs = [
-    {
-        "job": dust_forecast.task,
-        "options": {
-            'trigger': "interval", "seconds": int(SETTINGS.get("DUST_FORECAST_UPDATE_INTERVAL_SECONDS")),
-            "max_instances": 1
-        }
-    },
+    # {
+    #     "job": dust_forecast.task,
+    #     "options": {
+    #         'trigger': "interval", "seconds": int(SETTINGS.get("DUST_FORECAST_UPDATE_INTERVAL_SECONDS")),
+    #         "max_instances": 1
+    #     }
+    # },
     # {
     #     "job": ecmwf_forecast.task,
     #     "options": {
@@ -31,10 +35,17 @@ jobs = [
     #         "max_instances": 1
     #     }
     # },
+    # {
+    #     "job": tamsat_rainfall_estimate.task,
+    #     "options": {
+    #         'trigger': "interval", "seconds": int(SETTINGS.get("TAMSAT_RAINFALL_UPDATE_INTERVAL_SECONDS")),
+    #         "max_instances": 1
+    #     }
+    # },
     {
-        "job": tamsat_rainfall_estimate.task,
+        "job": chirps_rainfall_estimate.task,
         "options": {
-            'trigger': "interval", "seconds": int(SETTINGS.get("TAMSAT_RAINFALL_UPDATE_INTERVAL_SECONDS")),
+            'trigger': "interval", "seconds": int(SETTINGS.get("CHIRPS_RAINFALL_UPDATE_INTERVAL_SECONDS")),
             "max_instances": 1
         }
     },

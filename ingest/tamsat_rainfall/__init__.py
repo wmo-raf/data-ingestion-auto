@@ -87,7 +87,8 @@ class TamSatRainfall(DataIngest):
 
     def run(self, **kwargs):
         for period, period_config in self.periods.items():
-            if period == "monthly":
+            enabled = period_config.get("enabled")
+            if enabled and period == "monthly":
                 self.run_monthly()
 
     def run_monthly(self):
@@ -99,7 +100,6 @@ class TamSatRainfall(DataIngest):
 
         if monthly_last_update:
             next_date = get_next_month_date(monthly_last_update)
-
         else:
             next_data_year = period_config.get("start_year")
             next_data_month = period_config.get("start_month")

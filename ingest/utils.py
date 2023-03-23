@@ -126,6 +126,13 @@ def download_file_temp(url, auth=None, timeout=None, suffix=None):
     return tmp_file.name
 
 
+def download_to_file(url, out_file, auth=None, timeout=None):
+    with requests.get(url, stream=True, auth=auth, timeout=timeout) as r:
+        r.raise_for_status()
+        out_file.write(r.content)
+    return out_file
+
+
 def delete_past_data_files(latest_date_str, file_dir):
     latest_date = parser.parse(latest_date_str).astimezone(pytz.utc)
     pattern = r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)'
