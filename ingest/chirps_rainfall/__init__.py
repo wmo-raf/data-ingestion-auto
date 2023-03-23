@@ -70,48 +70,57 @@ class ChirpsRainfall(DataIngest):
         url = f"{self.base_data_url}{download_file_path}"
 
         logging.info(f'[CHIRPS_RAINFALL]: Downloading Chirps Monthly Data with url: {url} and date: {next_date}')
-        current_data_file = self.download_and_save_file(url, period="monthly", param="chirps_rainfall_estimate",
-                                                        data_date=next_date)
 
-        if calculate_anomalies:
-            normal_file = self.get_month_normal(next_date_month, climatology_period, file_template)
+        try:
 
-            nodata_value = -9999
+            current_data_file = self.download_and_save_file(url, period="monthly", param="chirps_rainfall_estimate",
+                                                            data_date=next_date)
+            if calculate_anomalies:
+                normal_file = self.get_month_normal(next_date_month, climatology_period, file_template)
 
-            data_array_current = rxr.open_rasterio(current_data_file)
-            data_array_current = data_array_current.rio.write_nodata(nodata_value, encoded=True)
+                nodata_value = -9999
 
-            data_array_normal = rxr.open_rasterio(normal_file)
-            data_array_normal = data_array_normal.rio.write_nodata(nodata_value, encoded=True)
+                data_array_current = rxr.open_rasterio(current_data_file)
+                data_array_current = data_array_current.rio.write_nodata(nodata_value, encoded=True)
 
-            mask_da1 = data_array_current != nodata_value
-            mask_da2 = data_array_normal != nodata_value
+                data_array_normal = rxr.open_rasterio(normal_file)
+                data_array_normal = data_array_normal.rio.write_nodata(nodata_value, encoded=True)
 
-            # calculate anomaly
-            data_array_anomaly = xr.where(mask_da1 & mask_da2, data_array_current - data_array_normal, nodata_value)
+                mask_da1 = data_array_current != nodata_value
+                mask_da2 = data_array_normal != nodata_value
 
-            date_str = next_date.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-            namespace = f"monthly_chirps_rainfall_anomaly"
+                # calculate anomaly
+                data_array_anomaly = xr.where(mask_da1 & mask_da2, data_array_current - data_array_normal, nodata_value)
 
-            data_dir = os.path.join(self.output_dir, namespace)
-            out_file = os.path.join(data_dir, f"{namespace}_{date_str}.tif")
+                date_str = next_date.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+                namespace = f"monthly_chirps_rainfall_anomaly"
 
-            Path(out_file).parent.absolute().mkdir(parents=True, exist_ok=True)
+                data_dir = os.path.join(self.output_dir, namespace)
+                out_file = os.path.join(data_dir, f"{namespace}_{date_str}.tif")
 
-            data_array_anomaly = data_array_anomaly.rio.write_nodata(-9999, encoded=True)
-            data_array_anomaly.rio.to_raster(out_file, driver="COG", compress="DEFLATE")
+                Path(out_file).parent.absolute().mkdir(parents=True, exist_ok=True)
 
-            ingest_payload = {
-                "namespace": f"-n {namespace}",
-                "path": f"-p {data_dir}",
-                "datatype": "-t tif",
-                "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
-            }
+                data_array_anomaly = data_array_anomaly.rio.write_nodata(-9999, encoded=True)
+                data_array_anomaly.rio.to_raster(out_file, driver="COG", compress="DEFLATE")
 
-            logging.info(
-                f"[CHIRPS_RAINFALL]: Sending ingest command for period: monthly  param: {namespace} and date: {date_str}")
-            self.send_ingest_command(ingest_payload)
+                ingest_payload = {
+                    "namespace": f"-n {namespace}",
+                    "path": f"-p {data_dir}",
+                    "datatype": "-t tif",
+                    "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
+                }
 
+                logging.info(
+                    f"[CHIRPS_RAINFALL]: Sending ingest command for period: monthly  param: {namespace} and date: {date_str}")
+                self.send_ingest_command(ingest_payload)
+        except requests.exceptions.HTTPError as e:
+            # file not found
+            if e.response.status_code == 404:
+                logging.info(
+                    f"[CHIRPS_RAINFALL]: Request data not yet available: {url}, date: {next_date}. Skipping...")
+                return
+            else:
+                raise e
         # update state
         self.update_state({"monthly": next_date.isoformat()})
 
@@ -184,38 +193,29 @@ class ChirpsRainfall(DataIngest):
 
         Path(out_file).parent.absolute().mkdir(parents=True, exist_ok=True)
 
-        try:
-            logging.info(
-                f"[CHIRPS_RAINFALL]: Downloading {period} data for param: {namespace} and date: {date_str}")
-            tif_file = self.download_chirps_tif(url)
+        logging.info(
+            f"[CHIRPS_RAINFALL]: Downloading {period} data for param: {namespace} and date: {date_str}")
+        tif_file = self.download_chirps_tif(url)
 
-            data_array_current = rxr.open_rasterio(tif_file)
-            data_array_current.rio.write_crs("epsg:4326", inplace=True)
-            data_array_current = data_array_current.rio.write_nodata(-9999, encoded=True)
+        data_array_current = rxr.open_rasterio(tif_file)
+        data_array_current.rio.write_crs("epsg:4326", inplace=True)
+        data_array_current = data_array_current.rio.write_nodata(-9999, encoded=True)
 
-            # save raster file
-            data_array_current.rio.to_raster(out_file, driver="COG", compress="DEFLATE")
+        # save raster file
+        data_array_current.rio.to_raster(out_file, driver="COG", compress="DEFLATE")
 
-            ingest_payload = {
-                "namespace": f"-n {namespace}",
-                "path": f"-p {data_dir}",
-                "datatype": "-t tif",
-                "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
-            }
+        ingest_payload = {
+            "namespace": f"-n {namespace}",
+            "path": f"-p {data_dir}",
+            "datatype": "-t tif",
+            "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
+        }
 
-            logging.info(
-                f"[CHIRPS_RAINFALL]: Sending ingest command for period: {period} param: {namespace} and date: {date_str}")
-            self.send_ingest_command(ingest_payload)
+        logging.info(
+            f"[CHIRPS_RAINFALL]: Sending ingest command for period: {period} param: {namespace} and date: {date_str}")
+        self.send_ingest_command(ingest_payload)
 
-            # cleanup
-            os.remove(tif_file)
+        # cleanup
+        os.remove(tif_file)
 
-            return out_file
-        except requests.exceptions.HTTPError as e:
-            # file not found
-            if e.response.status_code == 404:
-                logging.info(
-                    f"[CHIRPS_RAINFALL]: Request data not yet available: {url}, date: {data_date}. Skipping...")
-                return
-            else:
-                raise e
+        return out_file
