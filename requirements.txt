@@ -1,6 +1,7 @@
 affine==2.4.0
 APScheduler==3.10.0
 attrs==22.2.0
+cdsapi==0.6.1
 certifi==2022.12.7
 cftime==1.6.2
 charset-normalizer==3.0.1
