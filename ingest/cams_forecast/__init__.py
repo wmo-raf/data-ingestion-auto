@@ -93,8 +93,8 @@ class CamsForecast(DataIngest):
                     Path(param_t_filename).parent.absolute().mkdir(parents=True, exist_ok=True)
 
                     data_array = ds[data_var].isel(time=t_index)
-                    data_array.attrs['_FillValue'] = -9999.0
-                    data_array = data_array.rio.write_nodata(-9999, encoded=True)
+                    # data_array.attrs['_FillValue'] = -9999.0
+                    # data_array = data_array.rio.write_nodata(-9999, encoded=True)
                     units = data_array.attrs.get('units')
                     if units and isinstance(units, tuple):
                         data_array.attrs['units'] = units[0]
