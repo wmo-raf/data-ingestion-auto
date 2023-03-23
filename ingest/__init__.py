@@ -53,10 +53,12 @@ class DataIngest(object):
         logging.debug('Reading state')
         return read_state(self.dataset_id)
 
-    def update_state(self, last_update):
+    def update_state(self, new_state):
         logging.debug('Writing state')
-        new_state = {"last_update": last_update}
-        update_state(self.dataset_id, new_state)
+        # get existing state
+        state = self.get_state() or {}
+        state.update({**new_state})
+        update_state(self.dataset_id, state)
 
     def clip_to_africa(self, ds):
         # read shapefile

@@ -193,7 +193,7 @@ class ECMWFOpenData(DataIngest):
 
         if latest_str:
             # update state
-            self.update_state(latest_str)
+            self.update_state({"last_update": latest_str})
 
     def retrieve_surface_data(self):
         logging.info('[ECMWF_FORECAST]: Trying Surface Data...')

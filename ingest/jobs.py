@@ -1,6 +1,7 @@
 from ingest.config import SETTINGS
 from ingest.dustforecast import DustForecastIngest
 from ingest.ecmwf_opendata import ECMWFOpenData
+from ingest.tamsat_rainfall import TamSatRainfall
 
 dust_forecast = DustForecastIngest(dataset_id="dust_forecast",
                                    output_dir=SETTINGS.get("DUST_FORECAST_DATA_DIR"),
@@ -11,6 +12,9 @@ ecmwf_forecast = ECMWFOpenData(dataset_id="ecmwf_forecast",
                                output_dir=SETTINGS.get("ECMWF_FORECAST_DATA_DIR"),
                                vector_db_conn_conn_params=SETTINGS.get("VECTOR_DB_CONN_PARAMS"))
 
+tamsat_rainfall_estimate = TamSatRainfall(dataset_id="tamsat_rainfall",
+                                          output_dir=SETTINGS.get("TAMSAT_RAINFALL_DATA_DIR"), )
+
 # Jobs
 jobs = [
     {
@@ -20,10 +24,17 @@ jobs = [
             "max_instances": 1
         }
     },
+    # {
+    #     "job": ecmwf_forecast.task,
+    #     "options": {
+    #         'trigger': "interval", "seconds": int(SETTINGS.get("ECMWF_FORECAST_UPDATE_INTERVAL_SECONDS")),
+    #         "max_instances": 1
+    #     }
+    # },
     {
-        "job": ecmwf_forecast.task,
+        "job": tamsat_rainfall_estimate.task,
         "options": {
-            'trigger': "interval", "seconds": int(SETTINGS.get("ECMWF_FORECAST_UPDATE_INTERVAL_SECONDS")),
+            'trigger': "interval", "seconds": int(SETTINGS.get("TAMSAT_RAINFALL_UPDATE_INTERVAL_SECONDS")),
             "max_instances": 1
         }
     },

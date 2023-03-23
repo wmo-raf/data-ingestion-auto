@@ -34,5 +34,9 @@ SETTINGS = {
         'password': os.getenv("VECTOR_DB_PASSWORD"),
         'host': os.getenv("VECTOR_DB_HOST"),
         'port': os.getenv("VECTOR_DB_PORT")
-    }
+    },
+
+    # TAMSAT RAINFALL ESTIMATE
+    "TAMSAT_RAINFALL_DATA_DIR": os.getenv('TAMSAT_RAINFALL_DATA_DIR'),
+    "TAMSAT_RAINFALL_UPDATE_INTERVAL_SECONDS": os.getenv('TAMSAT_RAINFALL_UPDATE_INTERVAL_SECONDS', 1800),
 }

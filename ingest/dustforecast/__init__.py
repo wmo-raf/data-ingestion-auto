@@ -100,7 +100,7 @@ class DustForecastIngest(DataIngest):
                         f"[DUST_FORECAST]: Sending ingest command for param: {param} and date {data_file_date}")
                     self.send_ingest_command(ingest_payload)
 
-                self.update_state(data_file_date)
+                self.update_state({"last_update": data_file_date})
 
     def process(self, temp_file):
         logging.info(f"[DUST_FORECAST]: Processing data...")

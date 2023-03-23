@@ -118,9 +118,10 @@ def update_state(dataset_id, new_state):
     atomic_write(json.dumps(state, indent=4), DATASET_STATE_FILE)
 
 
-def download_file_temp(url, auth=None, timeout=None):
-    tmp_file = tempfile.NamedTemporaryFile(delete=False)
+def download_file_temp(url, auth=None, timeout=None, suffix=None):
+    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     with requests.get(url, stream=True, auth=auth, timeout=timeout) as r:
+        r.raise_for_status()
         tmp_file.write(r.content)
     return tmp_file.name
 
