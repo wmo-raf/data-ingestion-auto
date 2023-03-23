@@ -117,26 +117,26 @@ class TamSatRainfall(DataIngest):
             url = f"{self.base_data_url}{download_file_path}"
 
             logging.info(f'[TAMSAT_RAINFALL]: Downloading {param} Monthly Data with url {url} and date: {next_date}')
-            self.download_and_save_file(url, period="monthly", param=param, variables=variables, data_date=next_date)
 
-            date_str = next_date.isoformat()
+            try:
+                self.download_and_save_file(url, period="monthly", param=param, variables=variables,
+                                            data_date=next_date)
+                date_str = next_date.isoformat()
+                self.update_state({"monthly": date_str})
 
-            self.update_state({"monthly": date_str})
-
-            logging.info(f'[TAMSAT_RAINFALL]: Monthly {param} download success for date:{next_date}!')
+                logging.info(f'[TAMSAT_RAINFALL]: Monthly {param} download success for date:{next_date}!')
+            except requests.exceptions.HTTPError as e:
+                # file not found
+                if e.response.status_code == 404:
+                    logging.info(
+                        f"[TAMSTAT_RAINFALL]: Request data not yet available: {url}, date: {next_date}. Skipping...")
+                    return
+                else:
+                    raise e
 
     def download_and_save_file(self, url, period, param, variables, data_date):
 
-        try:
-            data_file = download_file_temp(url, suffix=".nc")
-        except requests.exceptions.HTTPError as e:
-            # file not found
-            if e.response.status_code == 404:
-                logging.info(
-                    f"[TAMSTAT_RAINFALL]: Request data not yet available: {url}, date: {data_date}. Skipping...")
-                return
-            else:
-                raise e
+        data_file = download_file_temp(url, suffix=".nc")
 
         # open dataset
         ds = rxr.open_rasterio(data_file)
