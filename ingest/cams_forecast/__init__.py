@@ -102,6 +102,9 @@ class CamsForecast(DataIngest):
                     logging.info(f"[CAMS_FORECAST]: Saving {namespace} data for date: {date_str}")
                     data_array.rio.to_raster(param_t_filename, driver="COG", compress="DEFLATE")
 
+            # cleanup old forecasts before ingestion
+            self.cleanup_old_data(next_date.isoformat(), data_dir)
+
             ingest_payload = {
                 "namespace": f"-n {namespace}",
                 "path": f"-p {data_dir}",
