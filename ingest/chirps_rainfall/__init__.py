@@ -101,6 +101,7 @@ class ChirpsRainfall(DataIngest):
                 Path(out_file).parent.absolute().mkdir(parents=True, exist_ok=True)
 
                 data_array_anomaly = data_array_anomaly.rio.write_nodata(-9999, encoded=True)
+                data_array_anomaly.rio.write_crs("epsg:4326", inplace=True)
                 data_array_anomaly.rio.to_raster(out_file, driver="COG", compress="DEFLATE")
 
                 ingest_payload = {
