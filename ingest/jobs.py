@@ -55,13 +55,6 @@ jobs = [
         }
     },
     {
-        "job": chirps_rainfall_estimate.run,
-        "options": {
-            'trigger': "interval", "seconds": int(SETTINGS.get("CHIRPS_RAINFALL_UPDATE_INTERVAL_SECONDS")),
-            "max_instances": 1
-        }
-    },
-    {
         "job": cams_forecast.run,
         "options": {
             'trigger': "interval", "seconds": int(SETTINGS.get("CAMS_FORECAST_UPDATE_INTERVAL_SECONDS")),
