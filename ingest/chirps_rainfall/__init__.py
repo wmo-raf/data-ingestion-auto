@@ -11,7 +11,7 @@ import rioxarray as rxr
 import xarray as xr
 
 from ingest import DataIngest
-from ingest.dateutils import get_next_month_date
+from ingest.dateutils import get_next_month_date, get_next_pentad
 from ingest.utils import download_file_temp
 
 CONFIG = {
@@ -24,6 +24,15 @@ CONFIG = {
             "calculate_anomalies": True,
             "climatology_period": [1981, 2011],
             "file_template": "/africa_monthly/tifs/chirps-v2.0.{YYYY}.{MM}.tif.gz",
+        },
+        "pentadal": {
+            "enabled": True,
+            "start_year": "1981",
+            "start_month": "01",
+            "start_pentad": "1",
+            "calculate_anomalies": True,
+            "climatology_period": [1981, 2011],
+            "file_template": "/africa_pentad/tifs/chirps-v2.0.{YYYY}.{MM}.{P}.tif.gz",
         }
     }
 }
@@ -41,6 +50,8 @@ class ChirpsRainfall(DataIngest):
             enabled = period_config.get("enabled")
             if enabled and period == "monthly":
                 self.run_monthly()
+            if enabled and period == "pentadal":
+                self.run_pentadal()
 
     def run_monthly(self):
         logging.info('[CHIRPS_RAINFALL]: Trying Monthly Data...')
@@ -125,6 +136,96 @@ class ChirpsRainfall(DataIngest):
         # update state
         self.update_state({"monthly": next_date.isoformat()})
 
+    def run_pentadal(self):
+        logging.info('[CHIRPS_RAINFALL]: Trying Pentadal Data...')
+        pentadal_config = self.periods.get("pentadal")
+
+        calculate_anomalies = pentadal_config.get("calculate_anomalies")
+        climatology_period = pentadal_config.get("climatology_period")
+
+        state = self.get_state() or {}
+        pentadal_last_update = state.get("pentadal")
+
+        if pentadal_last_update:
+            next_pentad_date, next_pentad_num = get_next_pentad(pentadal_last_update)
+        else:
+            next_data_year = pentadal_config.get("start_year")
+            next_data_month = pentadal_config.get("start_month")
+            next_data_pentad = pentadal_config.get("start_pentad")
+            next_pentad_date = datetime(int(next_data_year), int(next_data_month), int(next_data_pentad))
+            next_pentad_num = 1
+
+        print(next_pentad_date)
+
+        file_template = pentadal_config.get("file_template")
+
+        next_date_month = f"{next_pentad_date.month:02d}"
+
+        download_file_path = file_template. \
+            replace("{YYYY}", f"{next_pentad_date.year}"). \
+            replace("{MM}", f"{next_date_month}"). \
+            replace("{P}", f"{next_pentad_num}")
+
+        url = f"{self.base_data_url}{download_file_path}"
+
+        logging.info(
+            f'[CHIRPS_RAINFALL]: Downloading Chirps Pentadal Data with url: {url} and date: {next_pentad_date}')
+
+        try:
+
+            current_data_file = self.download_and_save_file(url, period="pentadal", param="chirps_rainfall_estimate",
+                                                            data_date=next_pentad_date)
+            if calculate_anomalies:
+                normal_file = self.get_pentad_normal(next_date_month, next_pentad_num, climatology_period,
+                                                     file_template)
+
+                nodata_value = -9999
+
+                data_array_current = rxr.open_rasterio(current_data_file)
+                data_array_current = data_array_current.rio.write_nodata(nodata_value, encoded=True)
+
+                data_array_normal = rxr.open_rasterio(normal_file)
+                data_array_normal = data_array_normal.rio.write_nodata(nodata_value, encoded=True)
+
+                mask_da1 = data_array_current != nodata_value
+                mask_da2 = data_array_normal != nodata_value
+
+                # calculate anomaly
+                data_array_anomaly = xr.where(mask_da1 & mask_da2, data_array_current - data_array_normal, nodata_value)
+
+                date_str = next_pentad_date.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+                namespace = f"pentadal_chirps_rainfall_anomaly"
+
+                data_dir = os.path.join(self.output_dir, namespace)
+                out_file = os.path.join(data_dir, f"{namespace}_{date_str}.tif")
+
+                Path(out_file).parent.absolute().mkdir(parents=True, exist_ok=True)
+
+                data_array_anomaly = data_array_anomaly.rio.write_nodata(-9999, encoded=True)
+                data_array_anomaly.rio.write_crs("epsg:4326", inplace=True)
+                data_array_anomaly.rio.to_raster(out_file, driver="COG", compress="DEFLATE")
+
+                ingest_payload = {
+                    "namespace": f"-n {namespace}",
+                    "path": f"-p {data_dir}",
+                    "datatype": "-t tif",
+                    "args": "-x -conf /rulesets/namespace_yyy-mm-ddTH.tif.json"
+                }
+
+                logging.info(
+                    f"[CHIRPS_RAINFALL]: Sending ingest command for period: pentadal  param: {namespace} and date: {date_str}")
+                self.send_ingest_command(ingest_payload)
+        except requests.exceptions.HTTPError as e:
+            # file not found
+            if e.response.status_code == 404:
+                logging.info(
+                    f"[CHIRPS_RAINFALL]: Request data not yet available: {url}, date: {next_pentad_date}. Skipping...")
+                return
+            else:
+                raise e
+        # update state
+        self.update_state({"pentadal": next_pentad_date.isoformat()})
+
     # get climatological mean for a given month and period [start_year, end_year]
     def get_month_normal(self, month, climatology_period, file_template):
         state = self.get_state() or {}
@@ -174,6 +275,61 @@ class ChirpsRainfall(DataIngest):
             self.update_state({"monthly_normals": monthly_normals})
 
             return monthly_normals.get(month)
+
+    # get climatological mean for a given month and pentad [start_year, end_year]
+    def get_pentad_normal(self, month, pentad_num, climatology_period, file_template):
+        state = self.get_state() or {}
+        pentad_normals = state.get("pentad_normals", {})
+        month_pentad = f"{month}_{pentad_num}"
+
+        normal = pentad_normals.get(month_pentad)
+
+        if normal and os.path.exists(normal):
+            return normal
+
+        start_year, end_year = climatology_period
+
+        logging.info(f"[CHIRPS_RAINFALL]: Getting Pentad normals for month: {month} and pentad: {pentad_num}")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for year in range(start_year, end_year + 1):
+                file_path = file_template. \
+                    replace("{YYYY}", f"{year}"). \
+                    replace("{MM}", month). \
+                    replace("{P}", f"{pentad_num}")
+
+                url = f"{self.base_data_url}{file_path}"
+
+                file_name = os.path.basename(url)[:-3]
+                out_file = os.path.join(temp_dir, file_name)
+                logging.info(
+                    f"[CHIRPS_RAINFALL]: Downloading pentad data for year: {year}, month: {month} and pentad: {pentad_num}")
+                self.download_chirps_tif(url, out_file)
+
+            file_pattern = f"{temp_dir}/*tif"
+            logging.info(f"[CHIRPS_RAINFALL]: Combining monthly pentad data for years: {start_year}, {end_year}")
+            ds = xr.open_mfdataset(file_pattern, combine='nested', concat_dim='band', engine="rasterio")
+
+            # write crs
+            ds.rio.write_crs("epsg:4326", inplace=True)
+            mean_ds = ds.mean(dim='band')
+
+            pentadsl_normals_dir = f"{self.output_dir}/normals_{start_year}_{end_year}/pentadal"
+            normal_file_out = os.path.join(pentadsl_normals_dir,
+                                           f"chirps_pentadal_normal_{month}_{pentad_num}_{start_year}_{end_year}.tif")
+            Path(normal_file_out).parent.absolute().mkdir(parents=True, exist_ok=True)
+
+            data_array = mean_ds["band_data"]
+            data_array.rio.write_crs("epsg:4326", inplace=True)
+            data_array = data_array.rio.write_nodata(-9999, encoded=True)
+
+            # save mean file
+            data_array.rio.to_raster(normal_file_out, driver="COG", compress="DEFLATE")
+
+            # update state
+            pentad_normals.update({month_pentad: normal_file_out})
+            self.update_state({"pentad_normals": pentad_normals})
+
+            return pentad_normals.get(month_pentad)
 
     @staticmethod
     def download_chirps_tif(url, out_file=None):

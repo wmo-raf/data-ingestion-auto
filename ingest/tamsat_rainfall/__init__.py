@@ -6,7 +6,7 @@ from pathlib import Path
 import requests
 
 from ingest import DataIngest
-from ingest.dateutils import get_next_month_date
+from ingest.dateutils import get_next_month_date, get_next_pentad
 from ingest.utils import download_file_temp
 import rioxarray as rxr
 
@@ -32,10 +32,10 @@ CONFIG = {
             }
         },
         "pentadal": {
-            "enabled": False,
+            "enabled": True,
             "start_year": "1983",
             "start_month": "01",
-            "start_pentad": "01",
+            "start_pentad": "1",
             "data_file_templates": {
                 "rainfall_estimate": "/pentadal/{YYYY}/{MM}/rfe{YYYY}_{MM}-pt{P}.v3.1.nc",
                 "rainfall_anomaly": "/pentadal-anomalies/{YYYY}/{MM}/rfe{YYYY}_{MM}-pt{P}_anom.v3.1.nc",
@@ -72,10 +72,6 @@ CONFIG = {
     }
 }
 
-PARAMS = {
-
-}
-
 
 class TamSatRainfall(DataIngest):
     def __init__(self, dataset_id, output_dir, cleanup_old_data=False):
@@ -90,6 +86,8 @@ class TamSatRainfall(DataIngest):
             enabled = period_config.get("enabled")
             if enabled and period == "monthly":
                 self.run_monthly()
+            if enabled and period == "pentadal":
+                self.run_pentadal()
 
     def run_monthly(self):
         logging.info('[TAMSAT_RAINFALL]: Trying Monthly Data...')
@@ -134,6 +132,55 @@ class TamSatRainfall(DataIngest):
                 else:
                     raise e
 
+    def run_pentadal(self):
+        logging.info('[TAMSAT_RAINFALL]: Trying Pentadal Data...')
+        period_config = self.periods.get("pentadal")
+
+        state = self.get_state() or {}
+        pentadal_last_update = state.get("pentadal")
+
+        if pentadal_last_update:
+            next_pentad_date, next_pentad_num = get_next_pentad(pentadal_last_update)
+        else:
+            next_data_year = period_config.get("start_year")
+            next_data_month = period_config.get("start_month")
+            next_data_pentad = period_config.get("start_pentad")
+            next_pentad_date = datetime(int(next_data_year), int(next_data_month), int(next_data_pentad))
+            next_pentad_num = 1
+
+        for param, file_template in period_config.get("data_file_templates", {}).items():
+            param_detail = self.params.get(param, {})
+
+            variables = param_detail.get("variables")
+
+            download_file_path = file_template. \
+                replace("{YYYY}", f"{next_pentad_date.year}"). \
+                replace("{MM}", f"{next_pentad_date.month:02d}"). \
+                replace("{P}", f"{next_pentad_num}")
+
+            url = f"{self.base_data_url}{download_file_path}"
+
+            print(url)
+
+            logging.info(
+                f'[TAMSAT_RAINFALL]: Downloading {param} Pentadal Data with url {url} and date: {next_pentad_date}')
+
+            try:
+                self.download_and_save_file(url, period="pentadal", param=param, variables=variables,
+                                            data_date=next_pentad_date)
+                date_str = next_pentad_date.isoformat()
+                self.update_state({"pentadal": date_str})
+
+                logging.info(f'[TAMSAT_RAINFALL]: Pentadal {param} download success for date:{next_pentad_date}!')
+            except requests.exceptions.HTTPError as e:
+                # file not found
+                if e.response.status_code == 404:
+                    logging.info(
+                        f"[TAMSTAT_RAINFALL]: Request pentadal data not yet available: {url}, date: {next_pentad_date}. Skipping...")
+                    return
+                else:
+                    raise e
+
     def download_and_save_file(self, url, period, param, variables, data_date):
 
         data_file = download_file_temp(url, suffix=".nc")
@@ -147,7 +194,7 @@ class TamSatRainfall(DataIngest):
         date_str = data_date.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
         for var in variables:
-            namespace = f"{period}_{param}_{var}"
+            namespace = f"tamsat_{period}_{param}_{var}"
 
             if var in ds.variables:
                 # we expect time to be always of length 1 because we requested for only one timestamp
