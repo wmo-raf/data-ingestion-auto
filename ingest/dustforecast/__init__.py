@@ -14,8 +14,8 @@ from ingest.utils import download_file_temp
 
 
 class DustForecastIngest(DataIngest):
-    def __init__(self, dataset_id, output_dir, username, password, request_timeout=None, task_timeout=20 * 60):
-        super().__init__(dataset_id=dataset_id, output_dir=output_dir, task_timeout=task_timeout)
+    def __init__(self, dataset_id, output_dir, username, password, request_timeout=None):
+        super().__init__(dataset_id=dataset_id, output_dir=output_dir)
 
         if not username:
             raise ParameterMissing("username required")

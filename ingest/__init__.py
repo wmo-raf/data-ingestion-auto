@@ -4,7 +4,6 @@ import hmac
 import logging
 import subprocess
 import tempfile
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 import fiona
 import requests
@@ -21,7 +20,7 @@ GSKY_WEBHOOK_SECRET = SETTINGS.get("GSKY_WEBHOOK_SECRET")
 
 
 class DataIngest(object):
-    def __init__(self, dataset_id, output_dir, task_timeout=10 * 60, cleanup_old_data=True):
+    def __init__(self, dataset_id, output_dir, cleanup_old_data=True):
         if not dataset_id:
             raise ParameterMissing("dataset_id not provided")
 
@@ -32,22 +31,9 @@ class DataIngest(object):
         self.output_dir = output_dir
         self.africa_shp_path = SETTINGS.get("AFRICA_SHP_PATH")
         self.cleanup_data = cleanup_old_data
-        self.task_timeout = task_timeout
 
     def run(self, **kwargs):
         raise NotImplementedError
-
-    def task(self):
-        logging.info(f"Scheduling {self.__class__.__name__}...")
-
-        with ThreadPoolExecutor() as executor:
-            future = executor.submit(self.run)
-
-            try:
-                future.result(timeout=self.task_timeout)
-            except TimeoutError:
-                logging.warning(f"{self.__class__.__name__} took too long to finish. Cancelling the task...")
-                future.cancel()
 
     def get_state(self):
         logging.debug('Reading state')

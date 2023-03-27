@@ -162,10 +162,8 @@ PRESSURE_LEVELS_PARAMS = [
 
 
 class ECMWFOpenData(DataIngest):
-    def __init__(self, dataset_id, output_dir, cleanup_old_data=True, vector_db_conn_conn_params=None,
-                 task_timeout=60 * 60):
-        super().__init__(dataset_id=dataset_id, output_dir=output_dir, cleanup_old_data=cleanup_old_data,
-                         task_timeout=task_timeout)
+    def __init__(self, dataset_id, output_dir, cleanup_old_data=True, vector_db_conn_conn_params=None):
+        super().__init__(dataset_id=dataset_id, output_dir=output_dir, cleanup_old_data=cleanup_old_data)
 
         self.surface_level_params = SURFACE_LEVEL_PARAMS
         self.pressure_level_params = PRESSURE_LEVELS_PARAMS

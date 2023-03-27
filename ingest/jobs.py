@@ -27,42 +27,42 @@ cams_forecast = CamsForecast(dataset_id="cams_forecast",
 # Jobs
 jobs = [
     {
-        "job": dust_forecast.task,
+        "job": dust_forecast.run,
         "options": {
             'trigger': "interval", "seconds": int(SETTINGS.get("DUST_FORECAST_UPDATE_INTERVAL_SECONDS")),
             "max_instances": 1
         }
     },
     {
-        "job": ecmwf_forecast.task,
+        "job": ecmwf_forecast.run,
         "options": {
             'trigger': "interval", "seconds": int(SETTINGS.get("ECMWF_FORECAST_UPDATE_INTERVAL_SECONDS")),
             "max_instances": 1
         }
     },
     {
-        "job": tamsat_rainfall_estimate.task,
+        "job": tamsat_rainfall_estimate.run,
         "options": {
             'trigger': "interval", "seconds": int(SETTINGS.get("TAMSAT_RAINFALL_UPDATE_INTERVAL_SECONDS")),
             "max_instances": 1
         }
     },
     {
-        "job": chirps_rainfall_estimate.task,
+        "job": chirps_rainfall_estimate.run,
         "options": {
             'trigger': "interval", "seconds": int(SETTINGS.get("CHIRPS_RAINFALL_UPDATE_INTERVAL_SECONDS")),
             "max_instances": 1
         }
     },
     {
-        "job": chirps_rainfall_estimate.task,
+        "job": chirps_rainfall_estimate.run,
         "options": {
             'trigger': "interval", "seconds": int(SETTINGS.get("CHIRPS_RAINFALL_UPDATE_INTERVAL_SECONDS")),
             "max_instances": 1
         }
     },
     {
-        "job": cams_forecast.task,
+        "job": cams_forecast.run,
         "options": {
             'trigger': "interval", "seconds": int(SETTINGS.get("CAMS_FORECAST_UPDATE_INTERVAL_SECONDS")),
             "max_instances": 1
