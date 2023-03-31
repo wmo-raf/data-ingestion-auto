@@ -9,7 +9,7 @@ import fiona
 import requests
 from shapely.geometry import shape
 
-from ingest.config import SETTINGS
+from config import SETTINGS
 from ingest.errors import ParameterMissing
 from ingest.raster_vector import VectorDbManager
 from ingest.utils import read_state, update_state, delete_past_data_files, convert_data, generate_contour_geojson, \

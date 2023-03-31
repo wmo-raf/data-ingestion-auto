@@ -6,9 +6,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
-from ecmwf.opendata import Client
 
 from ingest import DataIngest
+from ingest.ecmwf_opendata.client import ECWMFPatchedClient
 
 SURFACE_LEVEL_PARAMS = [
     {
@@ -176,10 +176,11 @@ class ECMWFOpenData(DataIngest):
         # next 6 Days, 3 hour steps
         self.steps = [i for i in range(0, 145, 3)]
 
-        self.client = Client("ecmwf", beta=True)
+        self.client = ECWMFPatchedClient("ecmwf", beta=True)
 
     def get_latest_date(self, request):
-        return self.client.latest(request)
+        latest = self.client.latest(request, timeout=60, maximum_tries=4, retry_after=30)
+        return latest
 
     def run(self):
 
@@ -225,7 +226,7 @@ class ECMWFOpenData(DataIngest):
         request.update({"target": temp_file.name})
 
         logging.info(f"[ECMWF_FORECAST]: Downloading Surface Data forecast for date: {latest}...")
-        self.client.retrieve(request)
+        self.client.retrieve(request, timeout=1200)
 
         file_prefix = f"{request.get('stream')}_{request.get('type')}"
         level_type = f"{request.get('levtype')}"
@@ -271,7 +272,7 @@ class ECMWFOpenData(DataIngest):
         request.update({"target": temp_file.name})
 
         logging.info(f"[ECMWF_FORECAST]: Downloading Pressure Levels forecast data for date: {latest}...")
-        self.client.retrieve(request)
+        self.client.retrieve(request, timeout=1200)
 
         file_prefix = f"{request.get('stream')}_{request.get('type')}"
         level_type = f"{request.get('levtype')}"

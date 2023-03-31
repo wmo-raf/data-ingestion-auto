@@ -13,7 +13,7 @@ import requests
 import rioxarray as rxr
 from dateutil import parser
 
-from ingest.config import SETTINGS
+from config import SETTINGS
 from ingest.errors import UnknownDataConvertOperation
 
 DATASET_STATE_DIR = SETTINGS.get("DATASET_STATE_DIR")
@@ -122,14 +122,17 @@ def download_file_temp(url, auth=None, timeout=None, suffix=None):
     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     with requests.get(url, stream=True, auth=auth, timeout=timeout) as r:
         r.raise_for_status()
-        tmp_file.write(r.content)
+        for chunk in r.iter_content(chunk_size=8192):
+            tmp_file.write(chunk)
     return tmp_file.name
 
 
 def download_to_file(url, out_file, auth=None, timeout=None):
-    with requests.get(url, stream=True, auth=auth, timeout=timeout) as r:
-        r.raise_for_status()
-        out_file.write(r.content)
+    with open(out_file, "wb") as out:
+        with requests.get(url, stream=True, auth=auth, timeout=timeout) as r:
+            r.raise_for_status()
+            for chunk in r.iter_content(chunk_size=8192):
+                out.write(chunk)
     return out_file
 
 

@@ -1,5 +1,5 @@
-# Use the osgeo/gdal:ubuntu-small-latest base image
-FROM osgeo/gdal:ubuntu-small-latest
+# Use the gdal:ubuntu-full-latest base image
+FROM ghcr.io/osgeo/gdal:ubuntu-full-latest
 
 ENV DEBIAN_FRONTEND=noninteractive
 

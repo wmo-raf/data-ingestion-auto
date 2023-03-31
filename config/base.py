@@ -8,6 +8,7 @@ SETTINGS = {
         'level': log_level
     },
 
+    "DEBUG": os.getenv("DEBUG"),
     # app
     'DATASET_STATE_DIR': os.getenv('DATASET_STATE_DIR'),
     "AFRICA_SHP_PATH": os.getenv('AFRICA_SHP_PATH'),
@@ -48,4 +49,8 @@ SETTINGS = {
     "CAMS_FORECAST_DATA_DIR": os.getenv('CAMS_FORECAST_DATA_DIR'),
     "CAMS_FORECAST_UPDATE_INTERVAL_SECONDS": os.getenv('CAMS_FORECAST_UPDATE_INTERVAL_SECONDS'),
     "CAMS_API_KEY": os.getenv('CAMS_API_KEY'),
+
+    "MODIS_DATA_DIR": os.getenv('MODIS_DATA_DIR'),
+    "MODIS_DATA_UPDATE_INTERVAL_SECONDS": os.getenv('MODIS_DATA_UPDATE_INTERVAL_SECONDS'),
+    "NASA_EARTHDATA_AUTH_TOKEN": os.getenv("NASA_EARTHDATA_AUTH_TOKEN"),
 }
