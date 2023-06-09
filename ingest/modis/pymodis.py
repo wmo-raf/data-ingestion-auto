@@ -137,8 +137,6 @@ class ModisDownloader(object):
         url = urljoin(self.base_url, self.data_path, data_date)
         r = requests.get(url)
 
-        print(url)
-
         if r.status_code == 404:
             return False, url
 

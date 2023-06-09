@@ -155,8 +155,6 @@ class ChirpsRainfall(DataIngest):
             next_pentad_date = datetime(int(next_data_year), int(next_data_month), int(next_data_pentad))
             next_pentad_num = 1
 
-        print(next_pentad_date)
-
         file_template = pentadal_config.get("file_template")
 
         next_date_month = f"{next_pentad_date.month:02d}"

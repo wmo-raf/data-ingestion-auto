@@ -160,8 +160,6 @@ class TamSatRainfall(DataIngest):
 
             url = f"{self.base_data_url}{download_file_path}"
 
-            print(url)
-
             logging.info(
                 f'[TAMSAT_RAINFALL]: Downloading {param} Pentadal Data with url {url} and date: {next_pentad_date}')
 
@@ -194,7 +192,7 @@ class TamSatRainfall(DataIngest):
         date_str = data_date.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
         for var in variables:
-            namespace = f"tamsat_{period}_{param}_{var}"
+            namespace = f"{period}_{param}_{var}"
 
             if var in ds.variables:
                 # we expect time to be always of length 1 because we requested for only one timestamp
