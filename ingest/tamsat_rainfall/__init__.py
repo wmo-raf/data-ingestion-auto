@@ -192,7 +192,7 @@ class TamSatRainfall(DataIngest):
         date_str = data_date.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
         for var in variables:
-            namespace = f"{period}_{param}_{var}"
+            namespace = f"tamsat_{period}_{param}_{var}"
 
             if var in ds.variables:
                 # we expect time to be always of length 1 because we requested for only one timestamp
